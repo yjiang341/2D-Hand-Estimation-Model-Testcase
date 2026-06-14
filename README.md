@@ -1,216 +1,231 @@
 # 2D Hand Estimation Model Testcase
 
-This project demonstrates 2D hand landmark detection using MediaPipe on:
+This project benchmarks 2D hand landmark estimation with MediaPipe in two batch pipelines:
 
-- A single image input
-- A YouTube video stream input
+- Image batch inference from a local dataset folder
+- Video batch inference from YouTube URLs listed in a text file
 
-Both pipelines draw hand keypoints and finger/palm connections, then report runtime statistics such as processing time and memory usage.
+Both pipelines log runtime and system-resource metrics for quick comparison and reproducibility.
 
-## Project Goal
+## Project Objectives
 
-- Detect up to 2 hands in each frame/image
+- Detect up to 2 hands per frame/image
 - Visualize 21 keypoints per hand
-- Connect keypoints to form a hand skeleton
-- Monitor runtime metrics for quick performance checks
+- Draw a hand skeleton (fingers + palm links)
+- Record benchmark-friendly metrics (latency, throughput/FPS, memory, CPU)
 
-## Current Folder Structure
+## Updated Folder Structure
 
 ```text
 2D-Hand-Estimation-Model-Testcase/
 |-- image_main.py
 |-- video_main.py
+|-- ytb_urls.txt
 |-- README.md
 |-- Models/
 |   |-- hand_landmarker.task
 |   |-- rtmpose-m_simcc-hand5_pt-aic-coco_210e-256x256-74fb594_20230320.pth
 |-- Test_image/
 |   |-- test.jpg
+|   |-- test2.jpg
+|   |-- test3.jpg
+|   |-- test4.jpg
+|   |-- test5.jpg
+|-- logs/
+|   |-- image_usage.log
+|   |-- video_usage.log
 ```
 
-## What Each File Does
+## File and Folder Roles
+
+### Core Scripts
 
 - `image_main.py`
-- Runs hand landmark detection on one local image (`Test_image/test.jpg`)
-- Draws landmarks and connections
-- Shows the result in an OpenCV window
-- Prints processing time, loop time, and peak memory usage
+	- Runs batch image benchmark on all supported image files in `Test_image/`
+	- Supported extensions: `.jpg`, `.jpeg`, `.png`, `.bmp`
+	- Saves visualized outputs into `Result_image/`
+	- Writes runtime report to console and `logs/image_usage.log`
 
 - `video_main.py`
-- Reads a YouTube video stream using `yt-dlp`
-- Runs frame-by-frame hand landmark detection in VIDEO mode
-- Draws landmarks, FPS, memory usage, and CPU usage on each frame
-- Press `q` to stop playback
-- Prints final usage report (time, frames, average FPS, memory)
+	- Reads one or more YouTube URLs from `ytb_urls.txt`
+	- Streams each video with `yt-dlp` + OpenCV
+	- Runs frame-by-frame hand landmark detection in VIDEO mode
+	- Shows live overlay (`FPS`, `Memory`, `CPU`)
+	- Writes per-video benchmark report to `logs/video_usage.log`
+
+### Data and Outputs
 
 - `Models/hand_landmarker.task`
-- MediaPipe hand landmark model file used by both scripts
+	- MediaPipe hand landmark model used by both scripts
 
-- `Models/rtmpose-m_simcc-hand5_pt-aic-coco_210e-256x256-74fb594_20230320.pth`
-- Additional model checkpoint currently not used directly by the two main scripts
+- `Test_image/`
+	- Input dataset for image batch benchmark
 
-- `Test_image/test.jpg`
-- Default test image for `image_main.py`
+- `logs/`
+	- Persistent benchmark logs for image and video runs
 
-## Requirements
+- `ytb_urls.txt`
+	- Source list of YouTube links for video batch benchmark
+	- Empty lines and lines starting with `#` are ignored
 
-### System
+## Environment Requirements
 
-- Windows (current code paths are Windows-style absolute paths)
-- Python 3.9 or newer recommended
-- Internet connection for YouTube streaming in `video_main.py`
+### OS and Runtime
 
-### Python Packages
+- Windows (scripts currently use Windows absolute paths)
+- Python 3.9+ recommended
+- Internet connection required for YouTube video benchmarking
 
-Install required packages:
+### Python Dependencies
 
 ```bash
 pip install opencv-python mediapipe yt-dlp psutil
 ```
 
-## Setup Steps
+## Setup Guide
 
-1. Clone or download this project.
-2. Ensure model files are inside `Models/`.
-3. Ensure test image is inside `Test_image/`.
-4. Install Python dependencies.
-5. Verify the hardcoded paths in scripts match your local project location.
+1. Make sure model files exist in `Models/`.
+2. Put test images in `Test_image/`.
+3. Add one or more YouTube URLs to `ytb_urls.txt`.
+4. Install required Python packages.
+5. Confirm hardcoded absolute paths in scripts match your local machine.
 
 ## How To Run
 
-### 1) Image Inference
-
-Run:
+### 1) Batch Image Benchmark
 
 ```bash
 python image_main.py
 ```
 
-What to expect:
+Expected behavior:
 
-- A window named `Hand Detection Result` appears
-- Hand keypoints and skeleton lines are rendered on the image
-- Console prints a usage report
+- Detects images from `Test_image/`
+- Processes each image independently in IMAGE mode
+- Saves each result to `Result_image/result_<original_name>`
+- Appends benchmark report to `logs/image_usage.log`
 
-### 2) Video Inference (YouTube)
-
-Run:
+### 2) Batch Video Benchmark (YouTube List)
 
 ```bash
 python video_main.py
 ```
 
-What to expect:
+Expected behavior:
 
-- Script fetches direct stream URL from YouTube
-- A window named `YouTube ASL Tracking` appears
-- Overlays include:
-- Live FPS
-- Current memory usage (MB)
-- Current CPU usage (%)
-- Press `q` to exit
-- Console prints final usage report
+- Loads URLs from `ytb_urls.txt`
+- Processes each video one by one
+- Displays real-time inference window (`YouTube ASL Tracking`)
+- Shows runtime overlays per frame:
+	- FPS
+	- Memory usage (MB)
+	- CPU usage (%)
+- Appends per-video benchmark report to `logs/video_usage.log`
 
-## Script Workflow Summary
+Keyboard behavior:
 
-### Common Flow (Both Scripts)
+- Press `q` to stop current stream and end the batch run early
 
-1. Start resource monitoring (`psutil`, `time`)
-2. Load MediaPipe model from `Models/hand_landmarker.task`
-3. Convert BGR input to RGB
-4. Run hand landmark detection
-5. Draw keypoints and hand connections
-6. Display output using OpenCV
-7. Print performance summary
+## Benchmark Metrics Reported
 
-### Detection Modes
+### Image Pipeline (`image_main.py`)
 
-- `image_main.py`: uses `detector.detect(...)` for single image mode
-- `video_main.py`: uses `detector.detect_for_video(...)` with frame timestamps for video mode
+- Total images processed
+- Total program runtime (includes file IO and saving)
+- Total pure inference time (model-only)
+- Average latency per image (ms)
+- Throughput (images/sec)
+- Peak memory usage (MB)
+- Final process CPU usage (%)
 
-## Hand Landmark Visualization
+### Video Pipeline (`video_main.py`)
 
-The scripts draw:
-
-- Landmarks as green circles
-- Hand skeleton as blue lines
-
-Connection groups include:
-
-- Thumb chain
-- Index chain
-- Middle chain
-- Ring chain
-- Pinky chain
-- Palm bridge connections
-
-## Performance Metrics Reported
-
-### Image Script
-
-- Total processing time
-- Total loop time
-- Peak memory usage
-
-### Video Script
-
-- Total processing time
-- Total loop time
+- Total runtime per video
+- Video loop time
+- Pure model compute time
 - Total frames processed
-- Average FPS
-- Peak memory usage
-- Per-frame CPU usage overlay
+- Average system FPS
+- Theoretical model FPS
+- Peak memory usage (MB)
+- Final process CPU usage (%)
+
+## Processing Workflow
+
+### Shared Detection Steps
+
+1. Initialize resource tracking (`psutil`, timers)
+2. Load `hand_landmarker.task`
+3. Convert BGR frames/images to RGB
+4. Run MediaPipe hand landmark detection
+5. Draw landmarks and skeleton connections
+6. Record metrics and write logs/results
+
+### Running Modes
+
+- `image_main.py` uses `vision.RunningMode.IMAGE` + `detector.detect(...)`
+- `video_main.py` uses `vision.RunningMode.VIDEO` + `detector.detect_for_video(...)`
+
+## Landmark Drawing Details
+
+- Green circles: keypoints
+- Blue lines: skeletal connections
+- Connection sets:
+	- Thumb
+	- Index finger
+	- Middle finger
+	- Ring finger
+	- Pinky
+	- Palm bridge
 
 ## Important Notes
 
-- Current scripts use hardcoded absolute paths like:
-- `D:\Project\2D-Hand-Estimation-Model-Testcase\...`
-- If your project path is different, update those path strings first.
+- Current paths are hardcoded to:
+	- `D:\Project\2D-Hand-Estimation-Model-Testcase\...`
+- If your project location is different, update path variables in both scripts.
 
-- The `.pth` file in `Models/` is present but not used by the current code.
+- Log files are append mode (`mode='a'`), so historical runs are preserved.
 
-- If no hand is detected in a frame/image, scripts still run and display/report normally.
+- The scripts create required output folders (`logs/`, `Result_image/`) automatically.
 
 ## Troubleshooting
 
-### Issue: "Could not read the image"
+### No images processed
 
-- Check that `Test_image/test.jpg` exists
-- Confirm the image path in `image_main.py`
+- Ensure `Test_image/` contains supported image extensions
+- Check `IMAGE_SET_DIR` path in `image_main.py`
 
-### Issue: "Error fetching video URL"
+### URL list is not loaded
 
-- Check internet connection
-- Check YouTube URL validity
+- Ensure `ytb_urls.txt` exists and is readable
+- Confirm each URL is on its own line
+- Remove accidental leading/trailing spaces if needed
+
+### YouTube stream fetch fails
+
+- Check internet access
+- Verify URL availability
 - Update `yt-dlp`:
 
 ```bash
 pip install -U yt-dlp
 ```
 
-### Issue: OpenCV window does not appear
+### OpenCV window does not show
 
-- Make sure you are not running in a headless environment
-- Try running from a local terminal (PowerShell/CMD)
+- Run from local desktop terminal (not headless environment)
+- Ensure GUI/OpenCV display support is available
 
-### Issue: Model load failure
+### Model load error
 
 - Confirm `Models/hand_landmarker.task` exists
-- Confirm path string in code matches your local path
+- Confirm model path string in scripts matches your local path
 
-## Suggested Improvements
-
-- Replace hardcoded absolute paths with relative paths
-- Add a `requirements.txt`
-- Add command-line arguments for input path and YouTube URL
-- Save output image/video to a dedicated results folder
-- Add logging levels instead of print-only output
-
-## Quick Start Checklist
+## Quick Checklist
 
 - [ ] Install dependencies
-- [ ] Verify model file path
-- [ ] Verify input image path
+- [ ] Verify model path
+- [ ] Verify image dataset path
+- [ ] Verify YouTube URL list file path
 - [ ] Run `python image_main.py`
 - [ ] Run `python video_main.py`
 
