@@ -1,3 +1,7 @@
+# log files, result files, and virtual environments
+logs/
+Result_image/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
