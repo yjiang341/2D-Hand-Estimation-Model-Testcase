@@ -93,7 +93,8 @@ while cap.isOpened():
                     start_point = points[path[i]]
                     end_point = points[path[i + 1]]
                     cv2.line(frame, start_point, end_point, (255, 0, 0), 2)
-
+    
+    # Monitoring stops here
     frame_end_time = time.time()
     frame_processing_time = frame_end_time - frame_start_time
     current_fps = 1.0 / frame_processing_time if frame_processing_time > 0 else 0
@@ -105,9 +106,9 @@ while cap.isOpened():
     cpu_usage = process.cpu_percent(interval=None)
 
     # STEP 6: Display the output video.
-    cv2.putText(frame, f"FPS: {current_fps:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
-    cv2.putText(frame, f"Memory Usage: {memory_usage:.2f} MB", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
-    cv2.putText(frame, f"CPU Usage: {cpu_usage:.2f}%", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
+    cv2.putText(frame, f"FPS: {current_fps:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+    cv2.putText(frame, f"Memory Usage: {memory_usage:.2f} MB", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+    cv2.putText(frame, f"CPU Usage: {cpu_usage:.2f}%", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
     cv2.imshow('YouTube ASL Tracking', frame)
 
     key = cv2.waitKey(1)
@@ -126,7 +127,7 @@ print(f"Total frames processed: {frame_count}")
 if frame_count > 0:
     print(f"Average FPS: {frame_count / total_loop_time:.2f} frames per second")
     print(f"Peak Memory Usage: {max_memory_usage:.2f} MB")
-print("="*50)
+print("="*54)
 # Release resources
 cap.release()
 cv2.destroyAllWindows()

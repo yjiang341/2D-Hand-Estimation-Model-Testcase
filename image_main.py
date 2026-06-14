@@ -36,6 +36,7 @@ hand_landmarker_result = detector.detect(mp_image)
 
 # STEP 5: Process the classification result. In this case, visualize it.
 if hand_landmarker_result.hand_landmarks:
+    loop_start_time = time.time()
     for hand_landmarks in hand_landmarker_result.hand_landmarks:
         points = []
         for landmark in hand_landmarks:
@@ -58,15 +59,28 @@ if hand_landmarker_result.hand_landmarks:
                 end_point = points[path[i + 1]]
                 cv2.line(bgr_image, start_point, end_point, (255, 0, 0), 2)
 
-# Monitor resources
+# Monitoring stops here
 memory_usage = process.memory_info().rss / (1024 * 1024)  # Convert to MB
 max_memory_usage = max(max_memory_usage, memory_usage)
 cpu_usage = process.cpu_percent(interval=None)
 
 # STEP 6: Display the output image.
 cv2.imshow('Hand Detection Result', bgr_image)
-cv2.imwrite('result.jpg', bgr_image)
+
+# Optionally, remove the "#" on next line to save the output image to disk
+#cv2.imwrite('D:\\Project\\2D-Hand-Estimation-Model-Testcase\\Result_image\\result.jpg', bgr_image)
 
 print('Detection complete. Press any key to exit.')
 cv2.waitKey(0)
+
+total_end_time = time.time()
+total_processing_time = total_end_time - total_start_time
+total_loop_time = time.time() - loop_start_time
+
+print("\n" + "="*20 + " Usage Report " + "="*20)
+print(f"Total processing time: {total_processing_time:.2f} seconds")
+print(f"Total loop time: {total_loop_time:.2f} seconds")
+print(f"Peak Memory Usage: {max_memory_usage:.2f} MB")
+print("="*54)
+
 cv2.destroyAllWindows()
