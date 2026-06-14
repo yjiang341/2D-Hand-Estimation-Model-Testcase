@@ -18,11 +18,15 @@ def get_youtube_url(youtube_url):
         return info['url']
     
 # ==================== Monitoring Resources ====================
-
+process = psutil.Process(os.getpid())
+total_start_time = time.time()
+print("Starting video processing...")
+frame_count = 0
+max_memory_usage = 0
 # ==============================================================
 
 # STEP 1&2: Create an HandLandmarker object.
-model_path = 'D:\\Project\\ASL\\hand_landmarker.task'
+model_path = 'D:\\Project\\2D-Hand-Estimation-Model-Testcase\\Models\\hand_landmarker.task'
 base_options = python.BaseOptions(model_asset_path=model_path)
 options = vision.HandLandmarkerOptions(
     base_options=base_options,
@@ -48,7 +52,11 @@ if not cap.isOpened():
 print("Video stream opened successfully. Starting hand detection... (Press 'q' to quit)")
 
 # STEP 4: Detect hand landmarks from the input video.
+
+loop_start_time = time.time()
 while cap.isOpened():
+    frame_start_time = time.time()
+
     ret, frame = cap.read()
     if not ret:
         print("End of video stream or error reading frame.")
@@ -86,14 +94,39 @@ while cap.isOpened():
                     end_point = points[path[i + 1]]
                     cv2.line(frame, start_point, end_point, (255, 0, 0), 2)
 
+    frame_end_time = time.time()
+    frame_processing_time = frame_end_time - frame_start_time
+    current_fps = 1.0 / frame_processing_time if frame_processing_time > 0 else 0
+    frame_count += 1
+
+    memory_usage = process.memory_info().rss / (1024 * 1024)  # Convert to MB
+    max_memory_usage = max(max_memory_usage, memory_usage)
+
+    cpu_usage = process.cpu_percent(interval=None)
+
     # STEP 6: Display the output video.
+    cv2.putText(frame, f"FPS: {current_fps:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
+    cv2.putText(frame, f"Memory Usage: {memory_usage:.2f} MB", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
+    cv2.putText(frame, f"CPU Usage: {cpu_usage:.2f}%", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
     cv2.imshow('YouTube ASL Tracking', frame)
 
     key = cv2.waitKey(1)
     if key == ord('q'):
         print("Exiting video stream.")
         break
+    
+total_end_time = time.time()
+total_processing_time = total_end_time - total_start_time
+total_loop_time = total_end_time - loop_start_time
 
+print("\n" + "="*20 + " Usage Report " + "="*20)
+print(f"Total processing time: {total_processing_time:.2f} seconds")
+print(f"Total loop time: {total_loop_time:.2f} seconds")
+print(f"Total frames processed: {frame_count}")
+if frame_count > 0:
+    print(f"Average FPS: {frame_count / total_loop_time:.2f} frames per second")
+    print(f"Peak Memory Usage: {max_memory_usage:.2f} MB")
+print("="*50)
 # Release resources
 cap.release()
 cv2.destroyAllWindows()
