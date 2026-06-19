@@ -1,6 +1,8 @@
 # log files, result files, and virtual environments
 logs/
 Result_image/
+yolo/
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -7,6 +7,7 @@ import glob
 import mediapipe as mp
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
+from pose_codec import quantize_all_hands, BYTES_PER_HAND
 
 # ==================== CONFIGURATION FOR BENCHMARK ====================
 # CHANGE THIS WHEN CHANGING MODELS (e.g., "MediaPipe_Hands", "Lite-HRNet", etc.)
@@ -104,6 +105,9 @@ for img_path in image_paths:
 
     # STEP 5: Visualize and draw skeletal structures
     if hand_landmarker_result.hand_landmarks:
+        quantized_hands = quantize_all_hands(hand_landmarker_result.hand_landmarks)
+        total_payload_bytes = len(quantized_hands) * BYTES_PER_HAND
+
         for hand_landmarks in hand_landmarker_result.hand_landmarks:
             points = []
             for landmark in hand_landmarks:
@@ -125,6 +129,16 @@ for img_path in image_paths:
                     start_point = points[path[i]]
                     end_point = points[path[i + 1]]
                     cv2.line(bgr_image, start_point, end_point, (255, 0, 0), 2)
+
+        cv2.putText(
+            bgr_image,
+            f"Pose payload: {total_payload_bytes} bytes ({len(quantized_hands)} hand)",
+            (10, 30),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            (0, 255, 255),
+            2,
+        )
 
     # Save output visualization to disk
     output_path = os.path.join(RESULT_SET_DIR, f"result_{filename}")

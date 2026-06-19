@@ -1,9 +1,10 @@
 # 2D Hand Estimation Model Testcase
 
-This project benchmarks 2D hand landmark estimation with MediaPipe in two batch pipelines:
+This project benchmarks 2D hand landmark estimation with MediaPipe in three pipelines:
 
 - Image batch inference from a local dataset folder
 - Video batch inference from YouTube URLs listed in a text file
+- Live webcam inference for real-time tracking
 
 Both pipelines log runtime and system-resource metrics for quick comparison and reproducibility.
 
@@ -20,6 +21,8 @@ Both pipelines log runtime and system-resource metrics for quick comparison and 
 2D-Hand-Estimation-Model-Testcase/
 |-- image_main.py
 |-- video_main.py
+|-- webcam_main.py
+|-- pose_codec.py
 |-- ytb_urls.txt
 |-- README.md
 |-- Models/
@@ -31,6 +34,7 @@ Both pipelines log runtime and system-resource metrics for quick comparison and 
 |   |-- test3.jpg
 |   |-- test4.jpg
 |   |-- test5.jpg
+|   |-- ...
 |-- logs/
 |   |-- image_usage.log
 |   |-- video_usage.log
@@ -52,6 +56,17 @@ Both pipelines log runtime and system-resource metrics for quick comparison and 
 	- Runs frame-by-frame hand landmark detection in VIDEO mode
 	- Shows live overlay (`FPS`, `Memory`, `CPU`)
 	- Writes per-video benchmark report to `logs/video_usage.log`
+
+- `webcam_main.py`
+	- Captures webcam input in real time (`cv2.VideoCapture(0)`)
+	- Runs MediaPipe hand tracking in VIDEO mode
+	- Shows live overlay (`FPS`, `Memory`, `CPU`, `Pose payload bytes`)
+	- Writes benchmark report to `logs/webcam_usage.log`
+
+- `pose_codec.py`
+	- Converts MediaPipe hand landmarks from `(x, y, z)` to compact `(x, y)` only
+	- Uses normalized coordinate quantization: `x_u8 = round(clamp(x, 0, 1) * 255)`
+	- Payload size per hand: `21 points × 2 channels = 42 bytes/frame`
 
 ### Data and Outputs
 
@@ -126,6 +141,20 @@ Keyboard behavior:
 
 - Press `q` to stop current stream and end the batch run early
 
+### 3) Live Webcam Benchmark
+
+```bash
+python webcam_main.py
+```
+
+Expected behavior:
+
+- Opens your default webcam
+- Detects up to 2 hands in real time
+- Quantizes each hand pose into compact uint8 payloads
+- Displays payload size per frame (0, 42, or 84 bytes)
+- Press `q` to quit
+
 ## Benchmark Metrics Reported
 
 ### Image Pipeline (`image_main.py`)
@@ -149,6 +178,16 @@ Keyboard behavior:
 - Peak memory usage (MB)
 - Final process CPU usage (%)
 
+### Webcam Pipeline (`webcam_main.py`)
+
+- Total runtime
+- Total frames processed
+- Average system FPS
+- Theoretical model FPS
+- Max pose payload size (bytes/frame)
+- Peak memory usage (MB)
+- Final process CPU usage (%)
+
 ## Processing Workflow
 
 ### Shared Detection Steps
@@ -164,6 +203,25 @@ Keyboard behavior:
 
 - `image_main.py` uses `vision.RunningMode.IMAGE` + `detector.detect(...)`
 - `video_main.py` uses `vision.RunningMode.VIDEO` + `detector.detect_for_video(...)`
+- `webcam_main.py` uses `vision.RunningMode.VIDEO` + `detector.detect_for_video(...)`
+
+## Landmark Quantization Details
+
+- Original MediaPipe per-landmark data: `(x, y, z)`
+- This project now keeps only `(x, y)` for transmission
+- Coordinates are clamped to `[0.0, 1.0]` and mapped to uint8 `[0, 255]`
+
+Formula:
+
+```python
+x_int = int(round(max(0.0, min(1.0, x)) * 255))
+y_int = int(round(max(0.0, min(1.0, y)) * 255))
+```
+
+Bandwidth estimate (single hand):
+
+- `21 × 2 = 42 bytes/frame`
+- At 15 FPS: `42 × 15 = 630 bytes/sec`
 
 ## Landmark Drawing Details
 
@@ -228,4 +286,5 @@ pip install -U yt-dlp
 - [ ] Verify YouTube URL list file path
 - [ ] Run `python image_main.py`
 - [ ] Run `python video_main.py`
+- [ ] Run `python webcam_main.py`
 

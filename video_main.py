@@ -7,6 +7,7 @@ import logging
 import mediapipe as mp
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
+from pose_codec import quantize_all_hands, BYTES_PER_HAND
 
 def get_youtube_url(youtube_url):
     ydl_opts = {
@@ -121,7 +122,9 @@ for idx, target_url in enumerate(youtube_urls):
         total_pure_inference_time += (single_inference_end - single_inference_start)
 
         # STEP 5: Process the classification result and draw skeleton lines
+        quantized_hands = []
         if hand_landmarker_result.hand_landmarks:
+            quantized_hands = quantize_all_hands(hand_landmarker_result.hand_landmarks)
             for hand_landmarks in hand_landmarker_result.hand_landmarks:
                 points = []
                 for landmark in hand_landmarks:
@@ -159,6 +162,15 @@ for idx, target_url in enumerate(youtube_urls):
         cv2.putText(frame, f"FPS: {current_fps:.1f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
         cv2.putText(frame, f"Memory Usage: {memory_usage:.2f} MB", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
         cv2.putText(frame, f"CPU Usage: {cpu_usage:.2f}%", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+        cv2.putText(
+            frame,
+            f"Pose payload: {len(quantized_hands) * BYTES_PER_HAND} bytes ({len(quantized_hands)} hand)",
+            (10, 120),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            (0, 255, 255),
+            2,
+        )
         cv2.imshow('YouTube ASL Tracking', frame)
 
         key = cv2.waitKey(1)
