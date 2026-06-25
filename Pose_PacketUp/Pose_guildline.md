@@ -1,4 +1,4 @@
-# Pose Packet Guideline
+﻿# Pose Packet Guideline
 
 This guide explains how the pose packet module in `Pose_PacketUp` works, how to run it, and how to use it in future stages (FSK receiver, smoothing, renderer, and live pipeline).
 
@@ -203,7 +203,7 @@ Fix:
 
 ## 12. What to Build Next
 
-For Phase 2.2 receiver:
+For Step 2.2 receiver:
 
 1. Detect preamble boundaries in WAV.
 2. Recover bitstream per packet.
@@ -212,3 +212,4 @@ For Phase 2.2 receiver:
 5. Drop CRC-failed frames and continue using `iter_decode_stream` pattern.
 
 This keeps your packet layer stable while you iterate on DSP/demodulation.
+

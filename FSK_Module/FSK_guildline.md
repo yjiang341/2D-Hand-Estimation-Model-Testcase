@@ -1,16 +1,16 @@
-# FSK Module Guideline
+﻿# FSK Module Guideline
 
-This document explains the current offline FSK module status (Phase 2.1 + Phase 2.2), including sender and receiver paths, how to run tests/CLIs, and how to extend toward later phases.
+This document explains the current offline FSK module status (Step 2.1 + Step 2.2), including sender and receiver paths, how to run tests/CLIs, and how to extend toward later phases.
 
 ## 1) Scope of Current Implementation
 
 Implemented now:
-- Phase 2.1 sender:
+- Step 2.1 sender:
   - Serialize pose packets to framed byte stream.
   - Convert bytes to MSB-first bits.
   - BFSK modulation to waveform.
   - Write PCM16 `.wav`.
-- Phase 2.2 receiver:
+- Step 2.2 receiver:
   - Read PCM16 `.wav`.
   - Symbol alignment search (optional auto-align).
   - BFSK demodulation.
@@ -19,8 +19,8 @@ Implemented now:
   - Drop corrupted frames and continue.
 
 Not implemented yet:
-- Phase 2.3 pose smoothing and reconstruction.
-- Phase 2.4 skeleton rendering to MP4.
+- Step 2.3 pose smoothing and reconstruction.
+- Step 2.4 skeleton rendering to MP4.
 
 ## 2) Files and Responsibilities
 
@@ -129,19 +129,19 @@ python -m FSK_Module.test_fsk_receiver
 
 Expected:
 
-- `All Phase 2.1 FSK sender tests passed.`
-- `All Phase 2.2 FSK receiver tests passed.`
+- `All Step 2.1 FSK sender tests passed.`
+- `All Step 2.2 FSK receiver tests passed.`
 
 ### 6.2 Generate sender artifacts
 
 ```powershell
-python -m FSK_Module.fsk_sender_main --frames 15 --fps 15 --out-wav logs/phase2_1_sender.wav --out-packets logs/phase2_1_packets.bin
+python -m FSK_Module.fsk_sender_main --frames 15 --fps 15 --out-wav logs/fsk_sender.wav --out-packets logs/pose_packets.bin
 ```
 
 ### 6.3 Recover packets from WAV
 
 ```powershell
-python -m FSK_Module.fsk_receiver_main --in-wav logs/phase2_1_sender.wav --out-recovered logs/phase2_2_recovered_packets.bin
+python -m FSK_Module.fsk_receiver_main --in-wav logs/fsk_sender.wav --out-recovered logs/recovered_packets.bin
 ```
 
 Typical successful report:
@@ -153,7 +153,7 @@ Typical successful report:
 ### 6.4 Custom receiver parameters
 
 ```powershell
-python -m FSK_Module.fsk_receiver_main --in-wav logs/phase2_1_sender.wav --sample-rate 48000 --symbol-rate 1200 --freq0 1200 --freq1 2200 --silence-ms 3 --detect-threshold 0.55 --out-recovered logs/recovered_custom.bin
+python -m FSK_Module.fsk_receiver_main --in-wav logs/fsk_sender.wav --sample-rate 48000 --symbol-rate 1200 --freq0 1200 --freq1 2200 --silence-ms 3 --detect-threshold 0.55 --out-recovered logs/recovered_custom.bin
 ```
 
 ## 7) Quick Integration Snippets
@@ -177,7 +177,7 @@ from FSK_Module.fsk_modem import FSKConfig
 from FSK_Module.fsk_receiver import recover_packets_from_wav
 
 cfg = FSKConfig()
-report = recover_packets_from_wav("logs/phase2_1_sender.wav", cfg, detection_threshold=0.55)
+report = recover_packets_from_wav("logs/fsk_sender.wav", cfg, detection_threshold=0.55)
 print(report.valid_frames, report.rejected_frames)
 ```
 
@@ -211,7 +211,7 @@ print(report.valid_frames, report.rejected_frames)
 
 - Reduce sender amplitude (example: `--amplitude 0.6`) to avoid clipping.
 
-## 10) Next Steps (Phase 2.3+)
+## 10) Next Steps (Step 2.3+)
 
 1. Feed recovered valid packets into pose reconstruction (`decode_packet -> keypoints`).
 2. Add temporal smoothing (EMA).
@@ -220,3 +220,4 @@ print(report.valid_frames, report.rejected_frames)
    - recovered FPS
    - valid/rejected frame ratio
    - pose continuity under noise.
+

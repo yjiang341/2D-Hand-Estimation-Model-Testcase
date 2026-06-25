@@ -155,6 +155,64 @@ Expected behavior:
 - Displays payload size per frame (0, 42, or 84 bytes)
 - Press `q` to quit
 
+### 4) Live Sender/Receiver Loop
+
+```bash
+python live_main.py --queue-capacity 8 --rx-delay-frames 1 --output-mode display
+```
+
+Live RX bridge to virtual camera (OBS-style virtual device):
+
+```bash
+python live_main.py --output-mode virtual-cam --max-frames 0
+```
+
+Show windows and publish virtual camera simultaneously:
+
+```bash
+python live_main.py --output-mode both
+```
+
+Expected behavior:
+
+- Captures webcam frames and quantizes up to 2 hands into pose packets
+- Runs live in-memory BFSK sender and receiver per frame
+- Reconstructs and smooths decoded pose stream in real time
+- Shows TX webcam and RX skeleton windows simultaneously
+- Can publish RX skeleton frames directly to virtual camera in real time
+- Reports queue depth, dropped frames, receiver validity, and latency metrics
+- Writes a runtime report to `logs/live_usage.log`
+- Press `q` or `esc` to stop
+
+### 5) Conferencing Readiness
+
+```bash
+python readiness_main.py --mode sweep
+```
+
+Optional virtual camera probe:
+
+```bash
+python readiness_main.py --mode both
+```
+
+Preset profiles:
+
+```bash
+python readiness_main.py --mode sweep --profile high-reliability
+python readiness_main.py --mode sweep --profile balanced
+python readiness_main.py --mode sweep --profile low-latency
+```
+
+Expected behavior:
+
+- Runs a modular FSK parameter sweep under synthetic conferencing-style channel impairments
+- Measures frame loss and CRC rejection rate across candidate modem settings
+- Auto-selects a winner by preset target profile (`high-reliability`, `balanced`, `low-latency`)
+- Produces fallback recommendation when channel quality degrades
+- Optionally probes virtual camera output path (requires `pyvirtualcam`)
+- Saves structured report to `logs/readiness_report.json`
+
 ## Benchmark Metrics Reported
 
 ### Image Pipeline (`image_main.py`)
