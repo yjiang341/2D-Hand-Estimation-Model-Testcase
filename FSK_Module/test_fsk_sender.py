@@ -6,7 +6,7 @@ import tempfile
 import numpy as np
 
 from FSK_Module.fsk_modem import FSKConfig, bytes_to_bits, modulate_packet_stream, write_wav_pcm16
-from pose_packet import PACKET_SIZE, encode_packet
+from Pose_PacketUp.pose_packet import PACKET_SIZE, encode_packet
 
 
 def _assert(ok: bool, label: str) -> None:

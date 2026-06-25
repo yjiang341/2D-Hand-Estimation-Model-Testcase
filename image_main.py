@@ -7,7 +7,7 @@ import glob
 import mediapipe as mp
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
-from pose_codec import quantize_all_hands, BYTES_PER_HAND
+from Pose_PacketUp.pose_codec import quantize_all_hands, BYTES_PER_HAND
 
 # ==================== CONFIGURATION FOR BENCHMARK ====================
 # CHANGE THIS WHEN CHANGING MODELS (e.g., "MediaPipe_Hands", "Lite-HRNet", etc.)

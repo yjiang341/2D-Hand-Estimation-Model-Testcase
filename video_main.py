@@ -7,7 +7,7 @@ import logging
 import mediapipe as mp
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
-from pose_codec import quantize_all_hands, BYTES_PER_HAND
+from Pose_PacketUp.pose_codec import quantize_all_hands, BYTES_PER_HAND
 
 def get_youtube_url(youtube_url):
     ydl_opts = {

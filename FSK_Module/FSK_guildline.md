@@ -1,58 +1,79 @@
 # FSK Module Guideline
 
-This document explains how the current Phase 2.1 FSK sender works, how to run it, and how to use it later when you connect receiver and rendering stages.
+This document explains the current offline FSK module status (Phase 2.1 + Phase 2.2), including sender and receiver paths, how to run tests/CLIs, and how to extend toward later phases.
 
 ## 1) Scope of Current Implementation
 
-Implemented now (Phase 2.1):
-- Convert pose packets (104 bytes each) into framed byte streams.
-- Convert bytes into bits (MSB-first).
-- BFSK modulate bits into an audio waveform.
-- Save waveform to `.wav` and optionally save packet binary stream.
+Implemented now:
+- Phase 2.1 sender:
+  - Serialize pose packets to framed byte stream.
+  - Convert bytes to MSB-first bits.
+  - BFSK modulation to waveform.
+  - Write PCM16 `.wav`.
+- Phase 2.2 receiver:
+  - Read PCM16 `.wav`.
+  - Symbol alignment search (optional auto-align).
+  - BFSK demodulation.
+  - Preamble/frame extraction.
+  - Packet reconstruction and CRC-backed validation via `Pose_PacketUp.decode_packet`.
+  - Drop corrupted frames and continue.
 
 Not implemented yet:
-- Receiver synchronization and demodulation (Phase 2.2).
-- Pose reconstruction video output (Phase 2.3 / 2.4).
+- Phase 2.3 pose smoothing and reconstruction.
+- Phase 2.4 skeleton rendering to MP4.
 
 ## 2) Files and Responsibilities
 
 - `FSK_Module/fsk_modem.py`
-  - Core modulation functions.
-  - Contains `FSKConfig`, framing, bit conversion, BFSK synthesis, WAV writer.
+  - Shared DSP and framing helpers for both sender and receiver.
+  - Includes modulation and demodulation utilities.
 - `FSK_Module/fsk_sender_main.py`
-  - CLI pipeline for offline sender generation.
-  - Builds demo packets or loads existing packet stream from `.bin`.
+  - Offline sender CLI (`packet stream -> wav`).
+- `FSK_Module/fsk_receiver.py`
+  - Receiver pipeline utilities (`wav -> recovered packets`).
+- `FSK_Module/fsk_receiver_main.py`
+  - Offline receiver CLI.
 - `FSK_Module/test_fsk_sender.py`
-  - Quick tests for bit mapping, waveform length, and WAV writing.
-- `pose_packet.py`
-  - Defines deterministic packet format (104 bytes).
-- `pose_codec.py`
-  - Defines quantized hand representation (`42 bytes / hand`).
+  - Sender-focused tests.
+- `FSK_Module/test_fsk_receiver.py`
+  - Receiver-focused tests (clean + corrupted conditions).
+- `Pose_PacketUp/pose_packet.py`
+  - Packet spec (`104` bytes) and CRC validation.
+- `Pose_PacketUp/pose_codec.py`
+  - Quantized hand payload (`42` bytes/hand).
 
 ## 3) End-to-End Data Flow
 
-The sender pipeline is:
+### 3.1 Sender
 
-1. Pose packets (`bytes`, each 104 bytes)
-2. Frame each packet with preamble:
-   - `framed_packet = preamble + packet`
-3. Convert framed bytes to bit sequence (MSB-first)
-4. BFSK modulation
+1. Pose packet bytes (104 each).
+2. Add preamble to each packet.
+3. Convert framed bytes to bitstream (MSB-first).
+4. BFSK modulation:
    - bit `0` -> `freq0_hz`
    - bit `1` -> `freq1_hz`
-5. Add optional inter-frame silence
-6. Concatenate all packet wave chunks
-7. Convert float waveform to PCM16
-8. Write mono WAV
+5. Insert inter-frame silence.
+6. Concatenate waveform.
+7. Convert float `[-1, 1]` to PCM16 and write WAV.
 
-## 4) Wire and Modulation Parameters
+### 3.2 Receiver
 
-### 4.1 Packet size assumptions
+1. Read PCM16 WAV (mono/stereo supported; stereo is down-mixed).
+2. Optional symbol timing offset search (`0..samples_per_symbol-1`) using preamble-hit scoring.
+3. Demodulate bits symbol-by-symbol via Goertzel energy at `freq0_hz` and `freq1_hz`.
+4. Detect preamble in bitstream and extract following `104*8` bits per frame.
+5. Convert bits to bytes.
+6. Validate packets with `Pose_PacketUp.decode_packet` (CRC + structure).
+7. Keep valid frames, reject corrupted ones.
 
-- Pose packet size: `104` bytes (from `pose_packet.py`)
-- Preamble size: `4` bytes (default `0x55 0x55 0x55 0xD5`)
-- Framed bytes per packet: `108` bytes
-- Framed bits per packet: `108 * 8 = 864` bits
+## 4) Parameters and Derived Values
+
+### 4.1 Packet assumptions
+
+- Pose packet size: `104` bytes.
+- Preamble size: `4` bytes (`0x55 0x55 0x55 0xD5`).
+- Framed bytes per packet: `108` bytes.
+- Framed bits per packet: `108 * 8 = 864` bits.
 
 ### 4.2 Default `FSKConfig`
 
@@ -69,145 +90,133 @@ Derived:
 - `samples_per_symbol = sample_rate / symbol_rate = 40`
 
 Constraint:
-- `sample_rate` must be divisible by `symbol_rate`.
 
-### 4.3 Time-per-frame estimate
-
-With default settings:
-
-- Symbol duration:
-  - $T_s = 1 / 1200 \approx 0.833\text{ ms}$
-- Payload duration per framed packet:
-  - $864 * T_s \approx 0.72\text{ s}$
-- With 3 ms silence:
-  - total about `0.723 s / packet`
-
-This is intentionally slow for robust offline validation and easy debugging.
-Later optimization can increase symbol rate and reduce preamble/silence.
+- `sample_rate % symbol_rate == 0`
 
 ## 5) Core APIs
 
-### 5.1 `FSK_Module/fsk_modem.py`
+### 5.1 Sender-related (`fsk_modem.py`)
 
-- `bytes_to_bits(data: bytes) -> np.ndarray`
-  - MSB-first bit conversion.
-- `frame_packet_bytes(packet_bytes, config) -> bytes`
-  - Adds preamble to one packet.
-- `modulate_bits_fsk(bits, config) -> np.ndarray`
-  - Continuous-phase BFSK generation.
-- `modulate_packet_stream(packets, config) -> np.ndarray`
-  - Full stream modulation.
+- `bytes_to_bits(data)`
+- `frame_packet_bytes(packet_bytes, config)`
+- `frame_packet_stream(packets, config)`
+- `modulate_bits_fsk(bits, config)`
+- `modulate_packet_stream(packets, config)`
 - `write_wav_pcm16(path, waveform, sample_rate)`
-  - Writes mono PCM16 WAV.
 
-### 5.2 `FSK_Module/fsk_sender_main.py`
+### 5.2 Receiver-related (`fsk_modem.py` + `fsk_receiver.py`)
 
-- Demo mode:
-  - Generates deterministic test packets.
-- Packet file mode:
-  - Loads concatenated packets from `.bin` where length is multiple of 104.
-- Output:
-  - `.wav` signal
-  - `.bin` packets used for modulation
+- `read_wav_pcm16(path)`
+- `demodulate_bits_fsk(waveform, config, sample_offset=0)`
+- `find_best_symbol_offset(waveform, config, probe_bits=...)`
+- `extract_packets_from_demod_bits(bits, config, packet_size)`
+- `demodulate_packet_stream(waveform, config, packet_size, auto_align=True)`
+- `recover_packets_from_waveform(waveform, config, detection_threshold=...)`
+- `recover_packets_from_wav(wav_path, config, detection_threshold=...)`
 
 ## 6) How to Run
 
-Run commands from project root:
+Run from project root:
+
 - `d:/Project/2D-Hand-Estimation-Model-Testcase`
 
-### 6.1 Run tests first
+### 6.1 Run tests
 
 ```powershell
-python FSK_Module/test_fsk_sender.py
+python -m FSK_Module.test_fsk_sender
+python -m FSK_Module.test_fsk_receiver
 ```
 
-Expected output:
+Expected:
+
 - `All Phase 2.1 FSK sender tests passed.`
+- `All Phase 2.2 FSK receiver tests passed.`
 
-### 6.2 Generate demo packet stream + WAV
-
-```powershell
-python FSK_Module/fsk_sender_main.py --frames 15 --fps 15 --out-wav logs/phase2_1_sender.wav --out-packets logs/phase2_1_packets.bin
-```
-
-What this does:
-- Creates deterministic packets for 15 frames.
-- Modulates them to BFSK waveform.
-- Saves:
-  - `logs/phase2_1_sender.wav`
-  - `logs/phase2_1_packets.bin`
-
-### 6.3 Use custom modulation parameters
+### 6.2 Generate sender artifacts
 
 ```powershell
-python FSK_Module/fsk_sender_main.py --frames 30 --sample-rate 48000 --symbol-rate 2400 --freq0 1500 --freq1 3000 --silence-ms 1 --out-wav logs/sender_fast.wav --out-packets logs/sender_fast.bin
+python -m FSK_Module.fsk_sender_main --frames 15 --fps 15 --out-wav logs/phase2_1_sender.wav --out-packets logs/phase2_1_packets.bin
 ```
 
-### 6.4 Modulate from existing packet binary
+### 6.3 Recover packets from WAV
 
 ```powershell
-python FSK_Module/fsk_sender_main.py --packet-bin logs/phase2_1_packets.bin --out-wav logs/replay_sender.wav --out-packets logs/replay_packets.bin
+python -m FSK_Module.fsk_receiver_main --in-wav logs/phase2_1_sender.wav --out-recovered logs/phase2_2_recovered_packets.bin
 ```
 
-## 7) Example Integration Snippet (Python)
+Typical successful report:
+
+- preamble candidates = frame count
+- valid frames = attempted frames
+- rejected frames = 0 (clean generated WAV)
+
+### 6.4 Custom receiver parameters
+
+```powershell
+python -m FSK_Module.fsk_receiver_main --in-wav logs/phase2_1_sender.wav --sample-rate 48000 --symbol-rate 1200 --freq0 1200 --freq1 2200 --silence-ms 3 --detect-threshold 0.55 --out-recovered logs/recovered_custom.bin
+```
+
+## 7) Quick Integration Snippets
+
+### 7.1 Sender snippet
 
 ```python
 from FSK_Module.fsk_modem import FSKConfig, modulate_packet_stream, write_wav_pcm16
-from pose_packet import encode_packet
+from Pose_PacketUp.pose_packet import encode_packet
 
-packets = []
-for i in range(10):
-    packets.append(encode_packet(frame_id=i, timestamp_ms=1000 + i * 66, hands=[]))
-
-cfg = FSKConfig(sample_rate=48000, symbol_rate=1200, freq0_hz=1200, freq1_hz=2200)
+packets = [encode_packet(frame_id=i, timestamp_ms=1000 + i * 66, hands=[]) for i in range(10)]
+cfg = FSKConfig()
 wave = modulate_packet_stream(packets, cfg)
 write_wav_pcm16("logs/example_sender.wav", wave, cfg.sample_rate)
 ```
 
-## 8) Output Validation Checklist
+### 7.2 Receiver snippet
 
-After running sender:
+```python
+from FSK_Module.fsk_modem import FSKConfig
+from FSK_Module.fsk_receiver import recover_packets_from_wav
 
-1. Check output files exist:
-   - WAV file size should be > 44 bytes (WAV header only is 44).
-2. Confirm packet binary size:
-   - `packet_count * 104` bytes.
-3. Confirm waveform duration is reasonable:
-   - Longer with lower symbol rate / more frames / more silence.
-4. Confirm no clipping:
-   - Keep `amplitude <= 0.9` to avoid hard clipping.
+cfg = FSKConfig()
+report = recover_packets_from_wav("logs/phase2_1_sender.wav", cfg, detection_threshold=0.55)
+print(report.valid_frames, report.rejected_frames)
+```
+
+## 8) Validation Checklist
+
+1. Sender WAV exists and is larger than 44-byte header.
+2. Sender packet bin size is `packet_count * 104` bytes.
+3. Receiver recovers packet count close to expected frame count.
+4. CRC-rejected frames are nonzero only under noise/corruption.
+5. In clean generated WAV tests, receiver should recover all frames.
 
 ## 9) Troubleshooting
 
-### Error: sample_rate must be divisible by symbol_rate
-- Use combinations like:
-  - `48000/1200`, `48000/2400`, `44100/1470`.
+### Import error for `FSK_Module.*` or `Pose_PacketUp.*`
 
-### Import error for `FSK_Module.*`
-- Run scripts from project root, not from inside `FSK_Module`.
+- Use module execution from project root:
+  - `python -m FSK_Module.fsk_sender_main`
+  - `python -m FSK_Module.fsk_receiver_main`
 
-### Very long WAV duration
-- Increase `--symbol-rate`.
-- Reduce `--frames`.
-- Reduce `--silence-ms`.
+### Error: sample rate mismatch at receiver
 
-### Distorted audio
-- Lower `--amplitude` (e.g., `0.6`).
+- Ensure `--sample-rate` matches WAV metadata used during sender generation.
 
-## 10) Recommended Next Usage Path
+### Low recovery / many rejected frames
 
-For future phases:
+- Verify `freq0/freq1/symbol_rate` exactly match sender.
+- Tune `--detect-threshold` (e.g. 0.45 to 0.70).
+- Increase inter-frame silence in sender for easier segmentation.
 
-1. Keep this sender unchanged as reference baseline.
-2. Implement receiver in `FSK_Module/fsk_receiver_main.py` with:
-   - preamble detection
-   - symbol timing recovery
-   - BFSK demodulation
-3. Reconstruct bytes and pass 104-byte chunks into `decode_packet()`.
-4. Reject corrupt packets via CRC from `pose_packet.py`.
-5. Add packet recovery metrics:
-   - frame loss rate
-   - bit error approximation
+### Distorted output
+
+- Reduce sender amplitude (example: `--amplitude 0.6`) to avoid clipping.
+
+## 10) Next Steps (Phase 2.3+)
+
+1. Feed recovered valid packets into pose reconstruction (`decode_packet -> keypoints`).
+2. Add temporal smoothing (EMA).
+3. Render skeleton-only MP4 from recovered frames.
+4. Measure end-to-end metrics:
    - recovered FPS
-
-This preserves deterministic sender behavior while allowing receiver experimentation without changing the trusted transmit format.
+   - valid/rejected frame ratio
+   - pose continuity under noise.

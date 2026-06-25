@@ -6,8 +6,8 @@ import time
 from typing import List
 
 from FSK_Module.fsk_modem import FSKConfig, modulate_packet_stream, write_wav_pcm16
-from pose_codec import QuantizedHand
-from pose_packet import PACKET_SIZE, encode_packet
+from Pose_PacketUp.pose_codec import QuantizedHand
+from Pose_PacketUp.pose_packet import PACKET_SIZE, encode_packet
 
 
 def _build_demo_hand(fill_byte: int) -> QuantizedHand:

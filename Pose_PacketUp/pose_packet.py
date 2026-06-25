@@ -5,7 +5,7 @@ import struct
 from dataclasses import dataclass
 from typing import List, Optional
 
-from pose_codec import BYTES_PER_HAND, QuantizedHand, quantized_hand_to_xy_pairs
+from Pose_PacketUp.pose_codec import BYTES_PER_HAND, QuantizedHand, quantized_hand_to_xy_pairs
 
 
 # ──────────────────────────────────────────────────────────────────────────────

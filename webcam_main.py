@@ -7,7 +7,7 @@ import mediapipe as mp
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 
-from pose_codec import BYTES_PER_HAND, quantize_all_hands
+from Pose_PacketUp.pose_codec import BYTES_PER_HAND, quantize_all_hands
 
 
 MODEL_NAME = "MediaPipe_Hands_Webcam"

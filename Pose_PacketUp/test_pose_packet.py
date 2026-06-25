@@ -11,8 +11,8 @@ from __future__ import annotations
 
 import struct
 
-from pose_codec import BYTES_PER_HAND, QuantizedHand
-from pose_packet import (
+from Pose_PacketUp.pose_codec import BYTES_PER_HAND, QuantizedHand
+from Pose_PacketUp.pose_packet import (
     HAND_SLOT_COUNT,
     HEADER_SIZE,
     MAGIC,
