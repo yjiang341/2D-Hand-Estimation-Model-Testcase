@@ -15,7 +15,7 @@ Both pipelines log runtime and system-resource metrics for quick comparison and 
 - Draw a hand skeleton (fingers + palm links)
 - Record benchmark-friendly metrics (latency, throughput/FPS, memory, CPU)
 
-## Updated Folder Structure
+## Folder Structure
 
 ```text
 2D-Hand-Estimation-Model-Testcase/
@@ -212,6 +212,83 @@ Expected behavior:
 - Produces fallback recommendation when channel quality degrades
 - Optionally probes virtual camera output path (requires `pyvirtualcam`)
 - Saves structured report to `logs/readiness_report.json`
+
+### 6) Integrated Meeting Bridge
+
+This bridge is designed for teams where each participant runs this project locally.
+
+List local audio devices first:
+
+```bash
+python bridge_main.py --mode list-devices
+```
+
+Sender side (webcam -> pose -> BFSK audio output device):
+
+```bash
+python bridge_main.py --mode sender --audio-output-device "CABLE Input (VB-Audio Virtual Cable)" --tx-fps 1.8
+```
+
+Sender side with explicit local WAV copy location:
+
+```bash
+python bridge_main.py --mode sender --audio-output-device "CABLE Input (VB-Audio Virtual Cable)" --local-wav-copy-dir local_sender_copy
+```
+
+Receiver side (audio input device -> decode -> skeleton -> virtual camera):
+
+```bash
+python bridge_main.py --mode receiver --audio-input-device "CABLE Output (VB-Audio Virtual Cable)" --publish-virtual-cam --display
+```
+
+Offline decode from saved WAV and render pose video:
+
+```bash
+python bridge_main.py --mode decode-wav --in-wav local_sender_copy/sender_capture_YYYYMMDD_HHMMSS.wav --result-video-dir result_video
+```
+
+Expected behavior:
+
+- Sender captures webcam hand pose and modulates packets to a selected audio output device
+- Sender also stores a local WAV copy at `local_sender_copy/` by default for reproducible offline validation
+- Receiver captures a selected audio input stream, demodulates and decodes packets in near-real-time
+- Receiver renders skeleton preview and can publish to virtual camera for OBS/meeting app selection
+- Offline mode can decode a saved WAV and render reconstructed skeleton video to `result_video/*.mp4`
+- Workflow is API-independent from Zoom/Google Meet; meeting apps act as transport surfaces
+
+### 7) Desktop GUI App (No CLI Needed)
+
+Launch GUI:
+
+```bash
+python gui_main.py
+```
+
+GUI features:
+
+- Device tab to list and refresh available audio devices
+- Sender tab to start/stop webcam -> pose -> BFSK audio bridge, save local WAV copies, and optionally auto-decode to `result_video/`
+- Receiver tab to start/stop audio -> decode -> skeleton bridge, plus offline `WAV -> MP4` decode
+- Readiness tab to run profile-based tuning without typing CLI arguments
+- Log tab for runtime status and errors
+
+### 8) Build Windows EXE
+
+Batch script:
+
+```bash
+build_exe.bat
+```
+
+PowerShell script:
+
+```powershell
+./build_exe.ps1
+```
+
+Output:
+
+- `build_tools/dist/HandPoseAudioBridge/HandPoseAudioBridge.exe`
 
 ## Benchmark Metrics Reported
 

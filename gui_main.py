@@ -1,4 +1,4 @@
-from Live_Module.live_main import main
+from GUI_Module.gui_main import main
 
 
 if __name__ == "__main__":

@@ -1,7 +1,10 @@
 # log files, result files, and virtual environments
 logs/
 Result_image/
+result_video/
 yolo/
+local_sender_copy/
+
 
 
 # Byte-compiled / optimized / DLL files
