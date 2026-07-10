@@ -247,6 +247,12 @@ Offline decode from saved WAV and render pose video:
 python bridge_main.py --mode decode-wav --in-wav local_sender_copy/sender_capture_YYYYMMDD_HHMMSS.wav --result-video-dir result_video
 ```
 
+Offline decode with timestamp-aligned hold behavior (recommended):
+
+```bash
+python bridge_main.py --mode decode-wav --in-wav local_sender_copy/sender_capture_YYYYMMDD_HHMMSS.wav --result-video-dir result_video --timestamp-timing --timestamp-max-hold-ms 2500
+```
+
 Expected behavior:
 
 - Sender captures webcam hand pose and modulates packets to a selected audio output device
@@ -254,6 +260,7 @@ Expected behavior:
 - Receiver captures a selected audio input stream, demodulates and decodes packets in near-real-time
 - Receiver renders skeleton preview and can publish to virtual camera for OBS/meeting app selection
 - Offline mode can decode a saved WAV and render reconstructed skeleton video to `result_video/*.mp4`
+- Offline decode supports timestamp-based frame hold to better match original gesture timing and pauses
 - Workflow is API-independent from Zoom/Google Meet; meeting apps act as transport surfaces
 
 ### 7) Desktop GUI App (No CLI Needed)
@@ -268,7 +275,7 @@ GUI features:
 
 - Device tab to list and refresh available audio devices
 - Sender tab to start/stop webcam -> pose -> BFSK audio bridge, save local WAV copies, and optionally auto-decode to `result_video/`
-- Receiver tab to start/stop audio -> decode -> skeleton bridge, plus offline `WAV -> MP4` decode
+- Receiver tab to start/stop audio -> decode -> skeleton bridge, plus offline `WAV -> MP4` decode with timestamp timing controls
 - Readiness tab to run profile-based tuning without typing CLI arguments
 - Log tab for runtime status and errors
 

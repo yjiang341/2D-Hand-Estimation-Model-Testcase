@@ -32,6 +32,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--in-wav", type=str, default=None)
     parser.add_argument("--result-video-dir", type=str, default="result_video")
     parser.add_argument("--out-video", type=str, default=None)
+    parser.add_argument("--timestamp-timing", action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument("--timestamp-max-hold-ms", type=int, default=2500)
 
     parser.add_argument("--sample-rate", type=int, default=48_000)
     parser.add_argument("--symbol-rate", type=int, default=1_600)
@@ -105,11 +107,15 @@ def main() -> None:
             out_video_path=out_video,
             fsk_cfg=fsk_cfg,
             render_cfg=render_cfg,
+            use_timestamp_timing=args.timestamp_timing,
+            max_hold_ms=args.timestamp_max_hold_ms,
         )
         print("=== Offline Decode Result ===")
         print(f"Input WAV   : {args.in_wav}")
         print(f"Output video: {out_video}")
         print(f"Frames      : {rendered}")
+        print(f"Timestamp timing : {args.timestamp_timing}")
+        print(f"Max hold (ms)    : {args.timestamp_max_hold_ms}")
         return
 
     render_cfg = BridgeRenderConfig(width=args.width, height=args.height, fps=args.render_fps)

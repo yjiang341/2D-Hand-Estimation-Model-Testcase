@@ -148,6 +148,8 @@ class App:
         self.receiver_height_var = tk.IntVar(value=720)
         self.receiver_in_wav_var = tk.StringVar(value="local_sender_copy")
         self.receiver_result_video_dir_var = tk.StringVar(value="result_video")
+        self.receiver_timestamp_timing_var = tk.BooleanVar(value=True)
+        self.receiver_timestamp_max_hold_ms_var = tk.IntVar(value=2500)
 
         ttk.Label(frame, text="Audio Input Device").grid(row=0, column=0, sticky=tk.W)
         self.receiver_device_var = tk.StringVar(value="")
@@ -180,8 +182,15 @@ class App:
         ttk.Label(frame, text="Offline Output Folder").grid(row=10, column=0, sticky=tk.W)
         ttk.Entry(frame, textvariable=self.receiver_result_video_dir_var, width=60).grid(row=10, column=1, sticky=tk.W)
 
+        ttk.Checkbutton(frame, text="Offline Timestamp Timing", variable=self.receiver_timestamp_timing_var).grid(
+            row=11, column=1, sticky=tk.W
+        )
+
+        ttk.Label(frame, text="Offline Max Hold (ms)").grid(row=12, column=0, sticky=tk.W)
+        ttk.Entry(frame, textvariable=self.receiver_timestamp_max_hold_ms_var, width=10).grid(row=12, column=1, sticky=tk.W)
+
         btns = ttk.Frame(frame)
-        btns.grid(row=11, column=1, sticky=tk.W, pady=10)
+        btns.grid(row=13, column=1, sticky=tk.W, pady=10)
         ttk.Button(btns, text="Start Receiver", command=self._start_receiver).pack(side=tk.LEFT, padx=4)
         ttk.Button(btns, text="Stop Receiver", command=self._stop_receiver).pack(side=tk.LEFT, padx=4)
         ttk.Button(btns, text="Decode WAV -> MP4", command=self._decode_wav_to_video).pack(side=tk.LEFT, padx=4)
@@ -310,6 +319,8 @@ class App:
                         out_video_path=out_video,
                         fsk_cfg=fsk_cfg,
                         render_cfg=render_cfg,
+                        use_timestamp_timing=bool(self.receiver_timestamp_timing_var.get()),
+                        max_hold_ms=int(self.receiver_timestamp_max_hold_ms_var.get()),
                     )
                     self._log(f"auto decode complete: frames={rendered}")
                     self._log(f"auto decode output mp4: {out_video}")
@@ -411,6 +422,8 @@ class App:
                     out_video_path=out_video,
                     fsk_cfg=fsk_cfg,
                     render_cfg=render_cfg,
+                    use_timestamp_timing=bool(self.receiver_timestamp_timing_var.get()),
+                    max_hold_ms=int(self.receiver_timestamp_max_hold_ms_var.get()),
                 )
                 self._log(f"offline decode complete: frames={rendered}")
                 self._log(f"offline input wav: {in_wav}")

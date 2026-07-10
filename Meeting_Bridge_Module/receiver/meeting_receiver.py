@@ -185,6 +185,8 @@ def decode_wav_to_video(
     out_video_path: str,
     fsk_cfg: BridgeFSKConfig,
     render_cfg: BridgeRenderConfig,
+    use_timestamp_timing: bool = True,
+    max_hold_ms: int = 2500,
 ) -> int:
     waveform, wav_sample_rate = read_wav_pcm16(wav_path)
 
@@ -217,6 +219,8 @@ def decode_wav_to_video(
 
     rendered = 0
     seen_frame_ids: Set[int] = set()
+    prev_frame: Optional[np.ndarray] = None
+    prev_ts_ms: Optional[int] = None
     try:
         for raw in packets:
             try:
@@ -254,7 +258,29 @@ def decode_wav_to_video(
                 render.text_color_bgr,
                 2,
             )
-            writer.write(frame)
+
+            ts_ms = int(packet.timestamp_ms)
+            if prev_frame is None:
+                prev_frame = frame
+                prev_ts_ms = ts_ms
+                continue
+
+            repeats = 1
+            if use_timestamp_timing and prev_ts_ms is not None:
+                delta_ms = ts_ms - prev_ts_ms
+                if delta_ms > 0:
+                    clamped_ms = min(int(delta_ms), int(max_hold_ms)) if max_hold_ms > 0 else int(delta_ms)
+                    repeats = max(1, int(round(clamped_ms * float(render.fps) / 1000.0)))
+
+            for _ in range(repeats):
+                writer.write(prev_frame)
+            rendered += repeats
+
+            prev_frame = frame
+            prev_ts_ms = ts_ms
+
+        if prev_frame is not None:
+            writer.write(prev_frame)
             rendered += 1
     finally:
         writer.release()
