@@ -155,7 +155,7 @@ Expected behavior:
 - Displays payload size per frame (0, 42, or 84 bytes)
 - Press `q` to quit
 
-### 4) Live Sender/Receiver Loop
+### 4) Live Sender/Receiver
 
 ```bash
 python live_main.py --queue-capacity 8 --rx-delay-frames 1 --output-mode display
@@ -184,7 +184,7 @@ Expected behavior:
 - Writes a runtime report to `logs/live_usage.log`
 - Press `q` or `esc` to stop
 
-### 5) Conferencing Readiness
+### 5) Conferencing Readiness (Auto Envrionment Configuration)
 
 ```bash
 python readiness_main.py --mode sweep
@@ -213,7 +213,7 @@ Expected behavior:
 - Optionally probes virtual camera output path (requires `pyvirtualcam`)
 - Saves structured report to `logs/readiness_report.json`
 
-### 6) Integrated Meeting Bridge
+### 6) Integrated sender/receiver Bridge
 
 This bridge is designed for teams where each participant runs this project locally.
 
@@ -226,19 +226,19 @@ python bridge_main.py --mode list-devices
 Sender side (webcam -> pose -> BFSK audio output device):
 
 ```bash
-python bridge_main.py --mode sender --audio-output-device "CABLE Input (VB-Audio Virtual Cable)" --tx-fps 1.8
+python bridge_main.py --mode sender --audio-output-device "[YOUR AUDIO OUPUT DEVICE]" --tx-fps 1.8
 ```
 
 Sender side with explicit local WAV copy location:
 
 ```bash
-python bridge_main.py --mode sender --audio-output-device "CABLE Input (VB-Audio Virtual Cable)" --local-wav-copy-dir local_sender_copy
+python bridge_main.py --mode sender --audio-output-device "[YOUR AUDIO OUPUT DEVICE]" --local-wav-copy-dir local_sender_copy
 ```
 
 Receiver side (audio input device -> decode -> skeleton -> virtual camera):
 
 ```bash
-python bridge_main.py --mode receiver --audio-input-device "CABLE Output (VB-Audio Virtual Cable)" --publish-virtual-cam --display
+python bridge_main.py --mode receiver --audio-input-device "[YOUR AUDIO INPUT DEVICE]" --publish-virtual-cam --display
 ```
 
 Offline decode from saved WAV and render pose video:
@@ -296,39 +296,6 @@ PowerShell script:
 Output:
 
 - `build_tools/dist/HandPoseAudioBridge/HandPoseAudioBridge.exe`
-
-## Benchmark Metrics Reported
-
-### Image Pipeline (`image_main.py`)
-
-- Total images processed
-- Total program runtime (includes file IO and saving)
-- Total pure inference time (model-only)
-- Average latency per image (ms)
-- Throughput (images/sec)
-- Peak memory usage (MB)
-- Final process CPU usage (%)
-
-### Video Pipeline (`video_main.py`)
-
-- Total runtime per video
-- Video loop time
-- Pure model compute time
-- Total frames processed
-- Average system FPS
-- Theoretical model FPS
-- Peak memory usage (MB)
-- Final process CPU usage (%)
-
-### Webcam Pipeline (`webcam_main.py`)
-
-- Total runtime
-- Total frames processed
-- Average system FPS
-- Theoretical model FPS
-- Max pose payload size (bytes/frame)
-- Peak memory usage (MB)
-- Final process CPU usage (%)
 
 ## Processing Workflow
 

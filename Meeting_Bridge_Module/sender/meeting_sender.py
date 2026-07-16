@@ -29,9 +29,13 @@ class MeetingSenderConfig:
     max_frames: int = 0
     show_preview: bool = True
     audio_output_device: Optional[str] = None
+    audio_output_fallback: bool = True
+    camera_backend: str = "auto"
     save_local_wav_copy: bool = True
     local_wav_copy_dir: str = "local_sender_copy"
     local_wav_copy_path: Optional[str] = None
+    warmup_enabled: bool = False
+    warmup_frame_tries: int = 5
 
 
 class MeetingSender:
@@ -48,6 +52,8 @@ class MeetingSender:
             if status_callback is not None:
                 status_callback(msg)
 
+        startup_t0 = time.perf_counter()
+
         base_options = python.BaseOptions(model_asset_path=self.cfg.model_path)
         options = vision.HandLandmarkerOptions(
             base_options=base_options,
@@ -55,14 +61,46 @@ class MeetingSender:
             running_mode=vision.RunningMode.VIDEO,
         )
         detector = vision.HandLandmarker.create_from_options(options)
+        _emit(f"sender detector ready startup_ms={(time.perf_counter() - startup_t0) * 1000.0:.1f}")
 
-        cap = cv2.VideoCapture(self.cfg.camera_id)
+        backend = str(self.cfg.camera_backend or "auto").strip().lower()
+        cap = None
+        if backend == "dshow" and hasattr(cv2, "CAP_DSHOW"):
+            cap = cv2.VideoCapture(self.cfg.camera_id, cv2.CAP_DSHOW)
+        elif backend == "msmf" and hasattr(cv2, "CAP_MSMF"):
+            cap = cv2.VideoCapture(self.cfg.camera_id, cv2.CAP_MSMF)
+        else:
+            cap = cv2.VideoCapture(self.cfg.camera_id)
+
+        if not cap.isOpened() and backend in ("dshow", "msmf"):
+            cap.release()
+            cap = cv2.VideoCapture(self.cfg.camera_id)
+
         if not cap.isOpened():
             detector.close()
             raise RuntimeError(f"Unable to open webcam id={self.cfg.camera_id}")
+        _emit(f"sender webcam opened startup_ms={(time.perf_counter() - startup_t0) * 1000.0:.1f}")
 
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.cfg.width)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.cfg.height)
+
+        if self.cfg.warmup_enabled:
+            _emit("sender warmup started")
+            warmed = False
+            max_tries = max(1, int(self.cfg.warmup_frame_tries))
+            for _ in range(max_tries):
+                ok, warm_frame = cap.read()
+                if not ok:
+                    continue
+                capture_timestamp_ms = int(time.time() * 1000)
+                rgb_frame = cv2.cvtColor(warm_frame, cv2.COLOR_BGR2RGB)
+                mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
+                detector.detect_for_video(mp_image, capture_timestamp_ms)
+                warmed = True
+                break
+            _emit("sender warmup finished" if warmed else "sender warmup skipped (no frame)")
+
+        _emit(f"sender startup complete startup_ms={(time.perf_counter() - startup_t0) * 1000.0:.1f}")
 
         modem_cfg = FSKConfig(
             sample_rate=self.fsk_cfg.sample_rate,
@@ -86,7 +124,11 @@ class MeetingSender:
 
         _emit("sender started")
 
-        with open_output_stream(self.fsk_cfg.sample_rate, device=self.cfg.audio_output_device) as stream:
+        with open_output_stream(
+            self.fsk_cfg.sample_rate,
+            device=self.cfg.audio_output_device,
+            fallback_to_default=bool(self.cfg.audio_output_fallback),
+        ) as stream:
             try:
                 while cap.isOpened():
                     if stop_event is not None and getattr(stop_event, "is_set", lambda: False)():

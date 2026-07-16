@@ -2,11 +2,9 @@ from __future__ import annotations
 
 import argparse
 import os
+import time
 
-from Meeting_Bridge_Module.audio.device_io import list_audio_devices
 from Meeting_Bridge_Module.common.config import BridgeFSKConfig, BridgeRenderConfig
-from Meeting_Bridge_Module.receiver.meeting_receiver import MeetingReceiver, MeetingReceiverConfig, decode_wav_to_video
-from Meeting_Bridge_Module.sender.meeting_sender import MeetingSender, MeetingSenderConfig
 
 
 def parse_args() -> argparse.Namespace:
@@ -22,8 +20,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-frames", type=int, default=0)
     parser.add_argument("--tx-fps", type=float, default=1.8)
     parser.add_argument("--show-preview", action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument("--camera-backend", choices=["auto", "dshow", "msmf"], default=("dshow" if os.name == "nt" else "auto"))
+    parser.add_argument("--warmup", action=argparse.BooleanOptionalAction, default=False)
+    parser.add_argument("--warmup-frame-tries", type=int, default=5)
 
     parser.add_argument("--audio-output-device", type=str, default=None)
+    parser.add_argument("--audio-output-fallback", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--audio-input-device", type=str, default=None)
     parser.add_argument("--save-local-wav-copy", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--local-wav-copy-dir", type=str, default="local_sender_copy")
@@ -55,8 +57,11 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    cmd_t0 = time.perf_counter()
 
     if args.mode == "list-devices":
+        from Meeting_Bridge_Module.audio.device_io import list_audio_devices
+
         devices = list_audio_devices()
         print("=== Audio Devices ===")
         for dev in devices:
@@ -77,6 +82,8 @@ def main() -> None:
     )
 
     if args.mode == "sender":
+        from Meeting_Bridge_Module.sender.meeting_sender import MeetingSender, MeetingSenderConfig
+
         sender_cfg = MeetingSenderConfig(
             model_path=args.model_path,
             camera_id=args.camera_id,
@@ -86,14 +93,24 @@ def main() -> None:
             max_frames=args.max_frames,
             show_preview=args.show_preview,
             audio_output_device=args.audio_output_device,
+            audio_output_fallback=args.audio_output_fallback,
+            camera_backend=args.camera_backend,
             save_local_wav_copy=args.save_local_wav_copy,
             local_wav_copy_dir=args.local_wav_copy_dir,
             local_wav_copy_path=args.local_wav_copy_path,
+            warmup_enabled=args.warmup,
+            warmup_frame_tries=args.warmup_frame_tries,
         )
-        MeetingSender(sender_cfg, fsk_cfg).run()
+
+        def _emit(msg: str) -> None:
+            print(f"[sender] t={(time.perf_counter() - cmd_t0) * 1000.0:.1f}ms {msg}")
+
+        MeetingSender(sender_cfg, fsk_cfg).run(status_callback=_emit)
         return
 
     if args.mode == "decode-wav":
+        from Meeting_Bridge_Module.receiver.meeting_receiver import decode_wav_to_video
+
         if not args.in_wav:
             raise ValueError("--in-wav is required when --mode decode-wav")
         os.makedirs(args.result_video_dir, exist_ok=True)
@@ -119,6 +136,8 @@ def main() -> None:
         return
 
     render_cfg = BridgeRenderConfig(width=args.width, height=args.height, fps=args.render_fps)
+    from Meeting_Bridge_Module.receiver.meeting_receiver import MeetingReceiver, MeetingReceiverConfig
+
     receiver_cfg = MeetingReceiverConfig(
         audio_input_device=args.audio_input_device,
         chunk_ms=args.chunk_ms,

@@ -8,22 +8,8 @@ from datetime import datetime
 import tkinter as tk
 from tkinter import messagebox, ttk
 
-from Conferencing_Module.channel.channel_simulator import ChannelConfig
-from Conferencing_Module.readiness_main import build_default_sweep_configs
-from Conferencing_Module.tuning.fsk_tuner import (
-    choose_profile_winner,
-    recommend_fallback,
-    run_fsk_parameter_sweep,
-)
-from FSK_Module.sender.fsk_sender_main import generate_demo_packets
 from Meeting_Bridge_Module.audio.device_io import list_audio_devices
 from Meeting_Bridge_Module.common.config import BridgeFSKConfig, BridgeRenderConfig
-from Meeting_Bridge_Module.receiver.meeting_receiver import (
-    MeetingReceiver,
-    MeetingReceiverConfig,
-    decode_wav_to_video,
-)
-from Meeting_Bridge_Module.sender.meeting_sender import MeetingSender, MeetingSenderConfig
 
 
 class App:
@@ -40,9 +26,10 @@ class App:
         self.receiver_stop = threading.Event()
 
         self.devices = []
+        self.devices_refreshing = False
 
         self._build_ui()
-        self._refresh_devices()
+        self._refresh_devices_async()
         self._pump_logs()
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
 
@@ -72,7 +59,7 @@ class App:
         top = ttk.Frame(self.tab_devices)
         top.pack(fill=tk.X, padx=8, pady=8)
 
-        ttk.Button(top, text="Refresh Devices", command=self._refresh_devices).pack(side=tk.LEFT)
+        ttk.Button(top, text="Refresh Devices", command=self._refresh_devices_async).pack(side=tk.LEFT)
 
         self.device_text = tk.Text(self.tab_devices, height=28, wrap=tk.NONE)
         self.device_text.pack(fill=tk.BOTH, expand=True, padx=8, pady=8)
@@ -92,6 +79,8 @@ class App:
         self.sender_wav_dir_var = tk.StringVar(value="local_sender_copy")
         self.sender_auto_decode_var = tk.BooleanVar(value=True)
         self.sender_auto_decode_out_dir_var = tk.StringVar(value="result_video")
+        self.sender_warmup_var = tk.BooleanVar(value=False)
+        self.sender_warmup_tries_var = tk.IntVar(value=5)
 
         ttk.Label(frame, text="Model Path").grid(row=0, column=0, sticky=tk.W)
         ttk.Entry(frame, textvariable=self.model_path_var, width=60).grid(row=0, column=1, sticky=tk.W)
@@ -125,13 +114,18 @@ class App:
         ttk.Label(frame, text="Auto Decode Output Folder").grid(row=10, column=0, sticky=tk.W)
         ttk.Entry(frame, textvariable=self.sender_auto_decode_out_dir_var, width=60).grid(row=10, column=1, sticky=tk.W)
 
-        ttk.Label(frame, text="Audio Output Device").grid(row=11, column=0, sticky=tk.W)
+        ttk.Checkbutton(frame, text="Sender Warmup", variable=self.sender_warmup_var).grid(row=11, column=1, sticky=tk.W)
+
+        ttk.Label(frame, text="Warmup Frame Tries").grid(row=12, column=0, sticky=tk.W)
+        ttk.Entry(frame, textvariable=self.sender_warmup_tries_var, width=10).grid(row=12, column=1, sticky=tk.W)
+
+        ttk.Label(frame, text="Audio Output Device").grid(row=13, column=0, sticky=tk.W)
         self.sender_device_var = tk.StringVar(value="")
         self.sender_device_combo = ttk.Combobox(frame, textvariable=self.sender_device_var, width=60, state="readonly")
-        self.sender_device_combo.grid(row=11, column=1, sticky=tk.W)
+        self.sender_device_combo.grid(row=13, column=1, sticky=tk.W)
 
         btns = ttk.Frame(frame)
-        btns.grid(row=12, column=1, sticky=tk.W, pady=10)
+        btns.grid(row=14, column=1, sticky=tk.W, pady=10)
         ttk.Button(btns, text="Start Sender", command=self._start_sender).pack(side=tk.LEFT, padx=4)
         ttk.Button(btns, text="Stop Sender", command=self._stop_sender).pack(side=tk.LEFT, padx=4)
 
@@ -226,12 +220,29 @@ class App:
         self.log_text = tk.Text(self.tab_logs, height=28, wrap=tk.WORD)
         self.log_text.pack(fill=tk.BOTH, expand=True, padx=8, pady=8)
 
-    def _refresh_devices(self) -> None:
-        try:
-            self.devices = list_audio_devices()
-        except Exception as exc:
-            messagebox.showerror("Device Error", str(exc))
+    def _refresh_devices_async(self) -> None:
+        if self.devices_refreshing:
             return
+
+        self.devices_refreshing = True
+        self._log("refreshing devices...")
+
+        def _worker() -> None:
+            try:
+                devices = list_audio_devices()
+                self.root.after(0, lambda: self._apply_devices(devices))
+            except Exception as exc:
+                self.root.after(0, lambda: messagebox.showerror("Device Error", str(exc)))
+            finally:
+                self.root.after(0, self._finish_device_refresh)
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _finish_device_refresh(self) -> None:
+        self.devices_refreshing = False
+
+    def _apply_devices(self, devices) -> None:
+        self.devices = devices
 
         out_lines = []
         in_choices = []
@@ -282,6 +293,9 @@ class App:
 
         def _worker() -> None:
             try:
+                from Meeting_Bridge_Module.receiver.meeting_receiver import decode_wav_to_video
+                from Meeting_Bridge_Module.sender.meeting_sender import MeetingSender, MeetingSenderConfig
+
                 fsk_cfg = BridgeFSKConfig(symbol_rate=int(self.sender_symbol_rate_var.get()))
                 save_local = bool(self.sender_save_wav_var.get())
                 wav_dir = self.sender_wav_dir_var.get().strip() or "local_sender_copy"
@@ -299,9 +313,12 @@ class App:
                     tx_fps=float(self.tx_fps_var.get()),
                     show_preview=bool(self.sender_preview_var.get()),
                     audio_output_device=self.sender_device_var.get() or None,
+                    camera_backend=("dshow" if os.name == "nt" else "auto"),
                     save_local_wav_copy=save_local,
                     local_wav_copy_dir=wav_dir,
                     local_wav_copy_path=local_wav_path,
+                    warmup_enabled=bool(self.sender_warmup_var.get()),
+                    warmup_frame_tries=int(self.sender_warmup_tries_var.get()),
                 )
                 MeetingSender(cfg, fsk_cfg).run(stop_event=self.sender_stop, status_callback=self._log)
 
@@ -351,6 +368,8 @@ class App:
 
         def _worker() -> None:
             try:
+                from Meeting_Bridge_Module.receiver.meeting_receiver import MeetingReceiver, MeetingReceiverConfig
+
                 fsk_cfg = BridgeFSKConfig(symbol_rate=int(self.receiver_symbol_rate_var.get()))
                 render_cfg = BridgeRenderConfig(
                     width=int(self.receiver_width_var.get()),
@@ -406,6 +425,8 @@ class App:
 
         def _worker() -> None:
             try:
+                from Meeting_Bridge_Module.receiver.meeting_receiver import decode_wav_to_video
+
                 in_wav = self._resolve_input_wav(in_path_or_dir)
                 os.makedirs(out_dir, exist_ok=True)
                 stem = os.path.splitext(os.path.basename(in_wav))[0]
@@ -441,6 +462,15 @@ class App:
 
         def _worker() -> None:
             try:
+                from Conferencing_Module.channel.channel_simulator import ChannelConfig
+                from Conferencing_Module.readiness_main import build_default_sweep_configs
+                from Conferencing_Module.tuning.fsk_tuner import (
+                    choose_profile_winner,
+                    recommend_fallback,
+                    run_fsk_parameter_sweep,
+                )
+                from FSK_Module.sender.fsk_sender_main import generate_demo_packets
+
                 packets = generate_demo_packets(frame_count=frames, fps=15)
                 sweep_cfgs = build_default_sweep_configs(
                     symbol_rates=[900, 1200, 1600],
