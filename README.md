@@ -19,25 +19,37 @@ Both pipelines log runtime and system-resource metrics for quick comparison and 
 
 ```text
 2D-Hand-Estimation-Model-Testcase/
+|-- README.md
 |-- image_main.py
 |-- video_main.py
 |-- webcam_main.py
-|-- pose_codec.py
+|-- live_main.py
+|-- readiness_main.py
+|-- bridge_main.py
+|-- gui_main.py
 |-- ytb_urls.txt
-|-- README.md
 |-- Models/
 |   |-- hand_landmarker.task
-|   |-- rtmpose-m_simcc-hand5_pt-aic-coco_210e-256x256-74fb594_20230320.pth
 |-- Test_image/
-|   |-- test.jpg
-|   |-- test2.jpg
-|   |-- test3.jpg
-|   |-- test4.jpg
-|   |-- test5.jpg
-|   |-- ...
+|-- Result_image/
+|-- result_video/
+|-- local_sender_copy/
 |-- logs/
-|   |-- image_usage.log
-|   |-- video_usage.log
+|-- build_exe.bat
+|-- build_exe.ps1
+|-- build_tools/
+|   |-- build_exe.bat
+|   |-- build_exe.ps1
+|   |-- HandPoseAudioBridge.spec
+|   |-- build/
+|   |-- dist/
+|-- docs/
+|-- Live_Module/
+|-- FSK_Module/
+|-- Conferencing_Module/
+|-- Meeting_Bridge_Module/
+|-- GUI_Module/
+|-- Pose_PacketUp/
 ```
 
 ## File and Folder Roles
