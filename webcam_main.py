@@ -1,5 +1,5 @@
-import runpy
+from Live_Module.live_main import main
 
 
 if __name__ == "__main__":
-    runpy.run_module("Benchmark_Module.webcam_main", run_name="__main__")
+    main()

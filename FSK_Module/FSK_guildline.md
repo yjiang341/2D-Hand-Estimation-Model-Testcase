@@ -1,6 +1,6 @@
 ﻿# FSK Module Guideline
 
-This document explains the current offline FSK module status (Step 2.1 + Step 2.2), including sender and receiver paths, how to run tests/CLIs, and how to extend toward later phases.
+This document explains the current offline FSK module status (Step 2.1 + Step 2.2), including sender and receiver paths, how to run CLIs, and how to extend toward later phases.
 
 ## 1) Scope of Current Implementation
 
@@ -33,10 +33,6 @@ Not implemented yet:
   - Receiver pipeline utilities (`wav -> recovered packets`).
 - `FSK_Module/fsk_receiver_main.py`
   - Offline receiver CLI.
-- `FSK_Module/test_fsk_sender.py`
-  - Sender-focused tests.
-- `FSK_Module/test_fsk_receiver.py`
-  - Receiver-focused tests (clean + corrupted conditions).
 - `Pose_PacketUp/pose_packet.py`
   - Packet spec (`104` bytes) and CRC validation.
 - `Pose_PacketUp/pose_codec.py`

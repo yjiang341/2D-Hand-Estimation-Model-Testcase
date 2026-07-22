@@ -1,14 +1,5 @@
 # 2D-Hand-Estimation-Render
 
-
-This project benchmarks 2D hand landmark estimation with MediaPipe in three pipelines:
-
-- Image batch inference from a local dataset folder
-- Video batch inference from YouTube URLs listed in a text file
-- Live webcam inference for real-time tracking
-
-Both pipelines log runtime and system-resource metrics for quick comparison and reproducibility.
-
 ## Project Objectives
 
 - Detect up to 2 hands per frame/image
@@ -76,7 +67,7 @@ Both pipelines log runtime and system-resource metrics for quick comparison and 
 ### Python Dependencies
 
 ```bash
-pip install opencv-python mediapipe yt-dlp psutil
+pip install opencv-python mediapipe psutil
 ```
 
 ## Setup Guide
@@ -239,14 +230,12 @@ Bandwidth estimate (single hand):
 
 - Log files are append mode (`mode='a'`), so historical runs are preserved.
 
-- The scripts create required output folders (`logs/`, `Result_image/`) automatically.
-
 ## Troubleshooting
 
 ### OpenCV window does not show
 
 - Run from local desktop terminal (not headless environment)
-- Ensure GUI/OpenCV display support is available
+- Ensure OpenCV display support is available
 
 ### Model load error
 
@@ -257,9 +246,8 @@ Bandwidth estimate (single hand):
 
 - [ ] Install dependencies
 - [ ] Verify model path
-- [ ] Verify image dataset path
-- [ ] Verify YouTube URL list file path
-- [ ] Run `python image_main.py`
-- [ ] Run `python video_main.py`
 - [ ] Run `python webcam_main.py`
+- [ ] Run `python live_main.py --output-mode display`
+- [ ] Run `python readiness_main.py --mode sweep`
+- [ ] Run `python bridge_main.py --mode list-devices`
 

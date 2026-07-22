@@ -19,8 +19,6 @@ This design is ideal for modulation/demodulation testing because every frame has
   - Converts MediaPipe normalized `(x, y, z)` landmarks to compact `(x, y)` uint8 bytes.
 - `pose_packet.py`
   - Defines fixed packet layout, encode/decode, and stream helpers.
-- `test_pose_packet.py`
-  - Golden-vector tests for size, layout, CRC behavior, and decode robustness.
 
 ## 3. Coordinate Compression (`pose_codec.py`)
 
@@ -124,16 +122,7 @@ Notes:
 Run from project root:
 - `d:/Project/2D-Hand-Estimation-Model-Testcase`
 
-### 7.1 Run packet tests
-
-```powershell
-python Pose_PacketUp/test_pose_packet.py
-```
-
-Expected summary:
-- `All 9 test groups passed.`
-
-### 7.2 Typical import usage in other modules
+### 7.1 Typical import usage in other modules
 
 ```python
 from Pose_PacketUp.pose_codec import quantize_all_hands
