@@ -1,4 +1,5 @@
-# 2D Hand Estimation Model Testcase
+# 2D-Hand-Estimation-Render
+
 
 This project benchmarks 2D hand landmark estimation with MediaPipe in three pipelines:
 
@@ -14,20 +15,17 @@ Both pipelines log runtime and system-resource metrics for quick comparison and 
 - Visualize 21 keypoints per hand
 - Draw a hand skeleton (fingers + palm links)
 - Record benchmark-friendly metrics (latency, throughput/FPS, memory, CPU)
+- Convert visual ASL hand pose into sound wave on the sender side, then rendering the sound wave back to Visualize 2D estimate hand pose
 
 ## Folder Structure
 
 ```text
 2D-Hand-Estimation-Model-Testcase/
 |-- README.md
-|-- image_main.py
-|-- video_main.py
 |-- webcam_main.py
 |-- live_main.py
 |-- readiness_main.py
 |-- bridge_main.py
-|-- gui_main.py
-|-- ytb_urls.txt
 |-- Models/
 |   |-- hand_landmarker.task
 |-- Test_image/
@@ -35,20 +33,10 @@ Both pipelines log runtime and system-resource metrics for quick comparison and 
 |-- result_video/
 |-- local_sender_copy/
 |-- logs/
-|-- build_exe.bat
-|-- build_exe.ps1
-|-- build_tools/
-|   |-- build_exe.bat
-|   |-- build_exe.ps1
-|   |-- HandPoseAudioBridge.spec
-|   |-- build/
-|   |-- dist/
-|-- docs/
 |-- Live_Module/
 |-- FSK_Module/
 |-- Conferencing_Module/
 |-- Meeting_Bridge_Module/
-|-- GUI_Module/
 |-- Pose_PacketUp/
 ```
 
@@ -56,44 +44,26 @@ Both pipelines log runtime and system-resource metrics for quick comparison and 
 
 ### Core Scripts
 
-- `image_main.py`
-	- Runs batch image benchmark on all supported image files in `Test_image/`
-	- Supported extensions: `.jpg`, `.jpeg`, `.png`, `.bmp`
-	- Saves visualized outputs into `Result_image/`
-	- Writes runtime report to console and `logs/image_usage.log`
-
-- `video_main.py`
-	- Reads one or more YouTube URLs from `ytb_urls.txt`
-	- Streams each video with `yt-dlp` + OpenCV
-	- Runs frame-by-frame hand landmark detection in VIDEO mode
-	- Shows live overlay (`FPS`, `Memory`, `CPU`)
-	- Writes per-video benchmark report to `logs/video_usage.log`
-
 - `webcam_main.py`
 	- Captures webcam input in real time (`cv2.VideoCapture(0)`)
 	- Runs MediaPipe hand tracking in VIDEO mode
 	- Shows live overlay (`FPS`, `Memory`, `CPU`, `Pose payload bytes`)
 	- Writes benchmark report to `logs/webcam_usage.log`
 
+- `live_main.py`
+	- Captures webcam frames and quantizes up to 2 hands into pose packets
+	- Runs live in-memory BFSK sender and receiver per frame
+	- Reconstructs and smooths decoded pose stream in real time
+
 - `pose_codec.py`
 	- Converts MediaPipe hand landmarks from `(x, y, z)` to compact `(x, y)` only
 	- Uses normalized coordinate quantization: `x_u8 = round(clamp(x, 0, 1) * 255)`
 	- Payload size per hand: `21 points × 2 channels = 42 bytes/frame`
 
-### Data and Outputs
+### Used Model
 
 - `Models/hand_landmarker.task`
 	- MediaPipe hand landmark model used by both scripts
-
-- `Test_image/`
-	- Input dataset for image batch benchmark
-
-- `logs/`
-	- Persistent benchmark logs for image and video runs
-
-- `ytb_urls.txt`
-	- Source list of YouTube links for video batch benchmark
-	- Empty lines and lines starting with `#` are ignored
 
 ## Environment Requirements
 
@@ -111,63 +81,12 @@ pip install opencv-python mediapipe yt-dlp psutil
 
 ## Setup Guide
 
-1. Make sure model files exist in `Models/`.
-2. Put test images in `Test_image/`.
-3. Add one or more YouTube URLs to `ytb_urls.txt`.
-4. Install required Python packages.
-5. Confirm hardcoded absolute paths in scripts match your local machine.
+1. Install required Python packages.
+2. Confirm hardcoded absolute paths in scripts match your local machine.
 
 ## How To Run
 
-### 1) Batch Image Benchmark
-
-```bash
-python image_main.py
-```
-
-Expected behavior:
-
-- Detects images from `Test_image/`
-- Processes each image independently in IMAGE mode
-- Saves each result to `Result_image/result_<original_name>`
-- Appends benchmark report to `logs/image_usage.log`
-
-### 2) Batch Video Benchmark (YouTube List)
-
-```bash
-python video_main.py
-```
-
-Expected behavior:
-
-- Loads URLs from `ytb_urls.txt`
-- Processes each video one by one
-- Displays real-time inference window (`YouTube ASL Tracking`)
-- Shows runtime overlays per frame:
-	- FPS
-	- Memory usage (MB)
-	- CPU usage (%)
-- Appends per-video benchmark report to `logs/video_usage.log`
-
-Keyboard behavior:
-
-- Press `q` to stop current stream and end the batch run early
-
-### 3) Live Webcam Benchmark
-
-```bash
-python webcam_main.py
-```
-
-Expected behavior:
-
-- Opens your default webcam
-- Detects up to 2 hands in real time
-- Quantizes each hand pose into compact uint8 payloads
-- Displays payload size per frame (0, 42, or 84 bytes)
-- Press `q` to quit
-
-### 4) Live Sender/Receiver
+### 1) Live Sender/Receiver
 
 ```bash
 python live_main.py --queue-capacity 8 --rx-delay-frames 1 --output-mode display
@@ -196,7 +115,7 @@ Expected behavior:
 - Writes a runtime report to `logs/live_usage.log`
 - Press `q` or `esc` to stop
 
-### 5) Conferencing Readiness (Auto Envrionment Configuration)
+### 2) Conferencing Readiness (Auto Envrionment Configuration)
 
 ```bash
 python readiness_main.py --mode sweep
@@ -208,7 +127,7 @@ Optional virtual camera probe:
 python readiness_main.py --mode both
 ```
 
-Preset profiles:
+Preset profiles (Choose one of three):
 
 ```bash
 python readiness_main.py --mode sweep --profile high-reliability
@@ -225,7 +144,7 @@ Expected behavior:
 - Optionally probes virtual camera output path (requires `pyvirtualcam`)
 - Saves structured report to `logs/readiness_report.json`
 
-### 6) Integrated sender/receiver Bridge
+### 3) Integrated sender/receiver Bridge
 
 This bridge is designed for teams where each participant runs this project locally.
 
@@ -253,13 +172,7 @@ Receiver side (audio input device -> decode -> skeleton -> virtual camera):
 python bridge_main.py --mode receiver --audio-input-device "[YOUR AUDIO INPUT DEVICE]" --publish-virtual-cam --display
 ```
 
-Offline decode from saved WAV and render pose video:
-
-```bash
-python bridge_main.py --mode decode-wav --in-wav local_sender_copy/sender_capture_YYYYMMDD_HHMMSS.wav --result-video-dir result_video
-```
-
-Offline decode with timestamp-aligned hold behavior (recommended):
+Offline decode with timestamp-aligned hold behavior:
 
 ```bash
 python bridge_main.py --mode decode-wav --in-wav local_sender_copy/sender_capture_YYYYMMDD_HHMMSS.wav --result-video-dir result_video --timestamp-timing --timestamp-max-hold-ms 2500
@@ -275,40 +188,6 @@ Expected behavior:
 - Offline decode supports timestamp-based frame hold to better match original gesture timing and pauses
 - Workflow is API-independent from Zoom/Google Meet; meeting apps act as transport surfaces
 
-### 7) Desktop GUI App (No CLI Needed)
-
-Launch GUI:
-
-```bash
-python gui_main.py
-```
-
-GUI features:
-
-- Device tab to list and refresh available audio devices
-- Sender tab to start/stop webcam -> pose -> BFSK audio bridge, save local WAV copies, and optionally auto-decode to `result_video/`
-- Receiver tab to start/stop audio -> decode -> skeleton bridge, plus offline `WAV -> MP4` decode with timestamp timing controls
-- Readiness tab to run profile-based tuning without typing CLI arguments
-- Log tab for runtime status and errors
-
-### 8) Build Windows EXE
-
-Batch script:
-
-```bash
-build_exe.bat
-```
-
-PowerShell script:
-
-```powershell
-./build_exe.ps1
-```
-
-Output:
-
-- `build_tools/dist/HandPoseAudioBridge/HandPoseAudioBridge.exe`
-
 ## Processing Workflow
 
 ### Shared Detection Steps
@@ -321,10 +200,6 @@ Output:
 6. Record metrics and write logs/results
 
 ### Running Modes
-
-- `image_main.py` uses `vision.RunningMode.IMAGE` + `detector.detect(...)`
-- `video_main.py` uses `vision.RunningMode.VIDEO` + `detector.detect_for_video(...)`
-- `webcam_main.py` uses `vision.RunningMode.VIDEO` + `detector.detect_for_video(...)`
 
 ## Landmark Quantization Details
 
@@ -359,7 +234,7 @@ Bandwidth estimate (single hand):
 ## Important Notes
 
 - Current paths are hardcoded to:
-	- `D:\Project\2D-Hand-Estimation-Model-Testcase\...`
+	- `D:\Project\2D-Hand-Estimation-Render\...`
 - If your project location is different, update path variables in both scripts.
 
 - Log files are append mode (`mode='a'`), so historical runs are preserved.
@@ -367,27 +242,6 @@ Bandwidth estimate (single hand):
 - The scripts create required output folders (`logs/`, `Result_image/`) automatically.
 
 ## Troubleshooting
-
-### No images processed
-
-- Ensure `Test_image/` contains supported image extensions
-- Check `IMAGE_SET_DIR` path in `image_main.py`
-
-### URL list is not loaded
-
-- Ensure `ytb_urls.txt` exists and is readable
-- Confirm each URL is on its own line
-- Remove accidental leading/trailing spaces if needed
-
-### YouTube stream fetch fails
-
-- Check internet access
-- Verify URL availability
-- Update `yt-dlp`:
-
-```bash
-pip install -U yt-dlp
-```
 
 ### OpenCV window does not show
 
