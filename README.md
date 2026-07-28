@@ -1,4 +1,4 @@
-# 2D-Hand-Estimation-Render
+# Audio-Based-2D-Hand-Estimation-Render
 
 ## Project Objectives
 
