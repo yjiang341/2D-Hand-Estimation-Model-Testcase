@@ -1,0 +1,279 @@
+schema: agent-executor/v1
+metadata:
+  plan_id: gui-panel-ui-modernization
+  title: Modernize GUI Panel UI and UX
+  version: "1.0"
+  owner: user
+  authoring_agent: github-copilot
+  created_on: 2026-07-30
+  last_updated: 2026-07-30
+  status: proposed
+  priority: high
+
+executor:
+  mode: dependency-graph
+  allow_parallel: true
+  fail_fast: true
+  default_timeout_minutes: 45
+  max_retries_per_task: 1
+
+context:
+  workspace: 2D-Hand-Estimation-Model-Testcase
+  objective: >-
+    Replace the current native-looking tkinter panel with a modern desktop UI while
+    preserving existing sender/receiver/decode/live behavior and Windows packaging flow.
+  current_state:
+    - GUI framework is tkinter in GUI_Panel/app.py
+    - Runtime orchestration is thread/event based and already stable
+    - Windows packaging exists via PyInstaller script
+  constraints:
+    - Keep existing Python business logic reusable
+    - No behavioral regression in sender/receiver/decode/live actions
+    - Preserve model path, device selection, and log streaming behavior
+    - Prefer minimal friction with current Windows + Python environment
+
+ui_strategy_decision:
+  winui3:
+    feasibility: partial
+    verdict: not_recommended_for_this_iteration
+    rationale:
+      - WinUI 3 is excellent for Windows-native UX but is primarily a .NET/C++ stack.
+      - Current app is Python tkinter; adopting WinUI 3 requires a cross-language bridge or full rewrite.
+      - Packaging and runtime integration complexity increases significantly for this project stage.
+  recommended_primary:
+    framework: PySide6
+    why_fit:
+      - Native desktop app workflow with modern widgets, styling, and docking patterns.
+      - Direct Python integration with existing modules and thread workers.
+      - Mature Windows support and workable PyInstaller packaging path.
+  recommended_alternatives:
+    - name: PyQt6
+      fit: high
+      note: similar capability to PySide6; licensing constraints may apply by use case.
+    - name: Flet
+      fit: medium
+      note: fast modern UI via Flutter-like model, but desktop app behavior and low-level control differ.
+    - name: CustomTkinter
+      fit: medium
+      note: easiest migration from tkinter but visual ceiling is lower than Qt/QML.
+    - name: Tauri + web frontend
+      fit: medium
+      note: modern UX and lightweight shell, but requires frontend stack and Python bridge process.
+
+inputs:
+  required_files:
+    - GUI_Panel/app.py
+    - GUI_Panel/gui_main.py
+    - Meeting_Bridge_Module/sender/meeting_sender.py
+    - Meeting_Bridge_Module/receiver/meeting_receiver.py
+    - Meeting_Bridge_Module/audio/device_io.py
+    - build_gui_exe.ps1
+  mutable_paths:
+    - GUI_Panel/
+    - plan/
+    - README.md
+
+outputs:
+  target_artifacts:
+    - GUI_Panel_Qt/ (new UI implementation)
+    - GUI_Panel_Qt/main.py
+    - GUI_Panel_Qt/window.py
+    - GUI_Panel_Qt/workers/
+    - plan/gui_panel_ui.yaml
+    - README.md
+    - build_gui_exe.ps1 (if entrypoint changes)
+
+variables:
+  defaults:
+    selected_framework: PySide6
+    ui_theme: light_modern
+    keep_existing_tkinter_until_cutover: true
+    migration_mode: side_by_side
+    smoke_timeout_seconds: 90
+
+task_graph:
+  - id: U01
+    title: Finalize UI framework selection
+    status: not_started
+    priority: high
+    depends_on: []
+    run_mode: manual
+    objective: Confirm migration target and cutover policy.
+    steps:
+      - Approve PySide6 as primary target for current iteration.
+      - Confirm fallback path (PyQt6 or CustomTkinter) if blockers appear.
+      - Decide side-by-side migration vs in-place replacement.
+    acceptance:
+      - Framework decision documented with rationale and risks.
+
+  - id: U02
+    title: Define UI architecture and component map
+    status: not_started
+    priority: high
+    depends_on: [U01]
+    run_mode: manual
+    objective: Map existing tkinter features to modern UI components.
+    steps:
+      - Define tabs/pages: Devices, Sender, Receiver/Decode, Live, Logs.
+      - Define shared state model and action guards.
+      - Define worker-to-UI signal contract for logs and status updates.
+    acceptance:
+      - Architecture doc and component map completed.
+
+  - id: U03
+    title: Bootstrap PySide6 shell
+    status: not_started
+    priority: high
+    depends_on: [U02]
+    run_mode: manual
+    objective: Build a runnable modern shell with navigation and styling.
+    steps:
+      - Create app entrypoint and main window skeleton.
+      - Add tab container and status bar.
+      - Add centralized style/theme tokens (spacing, typography, color roles).
+    acceptance:
+      - New GUI launches successfully with empty but styled tabs.
+
+  - id: U04
+    title: Migrate device discovery panel
+    status: not_started
+    priority: high
+    depends_on: [U03]
+    run_mode: manual
+    objective: Port device refresh and grouped rendering.
+    api_bindings:
+      - Meeting_Bridge_Module.audio.device_io.list_audio_devices
+    steps:
+      - Implement async refresh worker.
+      - Render Microphones/Speakers/All sections with searchable list.
+      - Bind selected entries to sender/receiver dropdown models.
+    acceptance:
+      - Device refresh is non-blocking and values sync to controls.
+
+  - id: U05
+    title: Migrate sender workflow with warm session visibility
+    status: not_started
+    priority: high
+    depends_on: [U03, U04]
+    run_mode: manual
+    objective: Preserve sender behavior and expose warm-state UX.
+    api_bindings:
+      - Meeting_Bridge_Module.sender.meeting_sender.MeetingSender
+      - Meeting_Bridge_Module.sender.meeting_sender.PreparedSenderSession
+    steps:
+      - Port Start Sender and Start Sender (With Local Copy).
+      - Port Stop Sender with deterministic button-state transitions.
+      - Add explicit warm session status indicator: idle/warming/ready/running/error.
+    acceptance:
+      - Sender behavior matches current tkinter flow without regressions.
+
+  - id: U06
+    title: Migrate receiver and decode workflows
+    status: not_started
+    priority: high
+    depends_on: [U03, U04]
+    run_mode: manual
+    objective: Port receiver runtime and decode latest WAV UX.
+    api_bindings:
+      - Meeting_Bridge_Module.receiver.meeting_receiver.MeetingReceiver
+      - Meeting_Bridge_Module.receiver.meeting_receiver.decode_wav_to_video
+    steps:
+      - Port Start/Stop Receiver actions.
+      - Port Latest WAV discovery and decode action.
+      - Add progress and completion indicators.
+    acceptance:
+      - Receiver/decode workflow functions with equivalent outputs.
+
+  - id: U07
+    title: Migrate live workflow and subprocess monitoring
+    status: not_started
+    priority: medium
+    depends_on: [U03]
+    run_mode: manual
+    objective: Port live controls while preserving guardrails.
+    steps:
+      - Port preset and output mode controls.
+      - Port subprocess start/stop and stdout log streaming.
+      - Keep mutual-exclusion guards with sender/receiver.
+    acceptance:
+      - Live mode start/stop works and logs stream to UI.
+
+  - id: U08
+    title: Integrate unified log console and error surfaces
+    status: not_started
+    priority: high
+    depends_on: [U05, U06, U07]
+    run_mode: manual
+    objective: Improve operational visibility and diagnostics.
+    steps:
+      - Add tagged log stream panel with severity coloring.
+      - Add compact error toast/banner and trace expansion view.
+      - Keep existing queue-based logging model.
+    acceptance:
+      - Runtime events are visible and actionable in UI.
+
+  - id: U09
+    title: Packaging and launcher alignment
+    status: not_started
+    priority: high
+    depends_on: [U08]
+    run_mode: manual
+    objective: Ensure new UI builds into Windows exe reliably.
+    steps:
+      - Update entrypoint in build script if GUI path changes.
+      - Validate PyInstaller hidden imports for Qt runtime.
+      - Produce test exe and verify model/device/runtime paths.
+    acceptance:
+      - Packaged exe launches and supports all primary workflows.
+
+  - id: U10
+    title: Regression and cutover
+    status: not_started
+    priority: high
+    depends_on: [U09]
+    run_mode: automated
+    objective: Complete parity checks and switch default launcher.
+    checks:
+      - sender start-stop twice consecutively without restart
+      - sender local-copy mode creates wav, normal sender does not
+      - receiver start-stop and optional virtual-cam publish
+      - decode latest wav produces mp4
+      - live start-stop with logs visible
+    steps:
+      - Run smoke tests on Python mode and packaged exe mode.
+      - Compare against tkinter behavior baseline.
+      - Set new GUI as default launch path; keep tkinter as rollback path for one cycle.
+    acceptance:
+      - Feature parity achieved and no blocker regressions.
+
+quality_gates:
+  - id: QG-visual-quality
+    description: UI is visibly modern and consistent with spacing, typography, and hierarchy.
+  - id: QG-parity
+    description: Sender/receiver/decode/live behavior matches existing functionality.
+  - id: QG-responsiveness
+    description: No UI freeze during device refresh or long-running operations.
+  - id: QG-packaging
+    description: Windows exe packaging and startup are stable.
+
+risk_register:
+  - id: R1
+    risk: Qt packaging increases bundle size and startup time.
+    mitigation: Use minimal Qt modules and explicit hidden imports only.
+  - id: R2
+    risk: Thread-safety issues when updating UI from workers.
+    mitigation: Use signal-slot pattern and main-thread UI updates only.
+  - id: R3
+    risk: Functional drift during migration.
+    mitigation: Preserve business logic modules and keep side-by-side validation.
+  - id: R4
+    risk: Device naming/index instability across sessions.
+    mitigation: Show index+name and revalidate at action start.
+
+executor_notes:
+  batching_strategy:
+    - Run U04 and U07 in parallel after U03.
+    - Run U05 and U06 in parallel once device binding model is stable.
+  rollback_strategy:
+    - Keep tkinter launcher untouched until U10 acceptance.
+    - If packaging or runtime gates fail, revert default launcher to tkinter and iterate in parallel branch.

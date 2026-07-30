@@ -5,7 +5,7 @@
 - Detect up to 2 hands per frame/image
 - Visualize 21 keypoints per hand
 - Draw a hand skeleton (fingers + palm links)
-- Record benchmark-friendly metrics (latency, throughput/FPS, memory, CPU)
+- Record runtime-friendly metrics (latency, throughput/FPS, memory, CPU)
 - Convert visual ASL hand pose into sound wave on the sender side, then rendering the sound wave back to Visualize 2D estimate hand pose
 
 ## Folder Structure
@@ -17,10 +17,14 @@
 |-- live_main.py
 |-- readiness_main.py
 |-- bridge_main.py
+|-- build_gui_exe.ps1
+|-- GUI_Panel/
+|   |-- gui_main.py
+|   |-- app.py
+|   |-- tabs/
+|   |-- workers/
 |-- Models/
 |   |-- hand_landmarker.task
-|-- Test_image/
-|-- Result_image/
 |-- result_video/
 |-- local_sender_copy/
 |-- logs/
@@ -46,10 +50,13 @@
 	- Runs live in-memory BFSK sender and receiver per frame
 	- Reconstructs and smooths decoded pose stream in real time
 
-- `pose_codec.py`
+- `Pose_PacketUp/pose_codec.py`
 	- Converts MediaPipe hand landmarks from `(x, y, z)` to compact `(x, y)` only
 	- Uses normalized coordinate quantization: `x_u8 = round(clamp(x, 0, 1) * 255)`
 	- Payload size per hand: `21 points × 2 channels = 42 bytes/frame`
+
+- `GUI_Panel/gui_main.py`
+	- Launches desktop GUI control panel for device refresh, sender/receiver control, decode, and live workflows
 
 ### Used Model
 
@@ -62,18 +69,23 @@
 
 - Windows (scripts currently use Windows absolute paths)
 - Python 3.9+ recommended
-- Internet connection required for YouTube video benchmarking
 
 ### Python Dependencies
 
 ```bash
-pip install opencv-python mediapipe psutil
+pip install opencv-python mediapipe psutil sounddevice
+```
+
+Optional dependency (only when using virtual camera features):
+
+```bash
+pip install pyvirtualcam
 ```
 
 ## Setup Guide
 
 1. Install required Python packages.
-2. Confirm hardcoded absolute paths in scripts match your local machine.
+2. Ensure `Models/hand_landmarker.task` exists.
 
 ## How To Run
 
@@ -179,6 +191,30 @@ Expected behavior:
 - Offline decode supports timestamp-based frame hold to better match original gesture timing and pauses
 - Workflow is API-independent from Zoom/Google Meet; meeting apps act as transport surfaces
 
+### 4) Desktop GUI Control Panel (GUI_Panel)
+
+Launch GUI panel:
+
+```bash
+python GUI_Panel/gui_main.py
+```
+
+GUI tabs:
+
+- `Devices`
+	- Refreshes local audio devices and shows grouped sections (`Microphones`, `Speakers`, `All Devices`)
+- `Sender`
+	- Starts sender with selected output device in TX-FPS mode
+	- Starts sender with selected output device and local WAV copy directory
+- `Receiver / Decode`
+	- Starts/stops receiver with selected input device
+	- Decodes latest WAV automatically from `local_sender_copy/` into `result_video/`
+	- Supports timestamp timing and max hold configuration
+- `Live`
+	- Runs `live_main.py` presets (`Beginner`, `Advanced`) and supports stop control
+- `Logs`
+	- Displays tagged runtime logs and errors
+
 ## Processing Workflow
 
 ### Shared Detection Steps
@@ -189,8 +225,6 @@ Expected behavior:
 4. Run MediaPipe hand landmark detection
 5. Draw landmarks and skeleton connections
 6. Record metrics and write logs/results
-
-### Running Modes
 
 ## Landmark Quantization Details
 
@@ -224,10 +258,6 @@ Bandwidth estimate (single hand):
 
 ## Important Notes
 
-- Current paths are hardcoded to:
-	- `D:\Project\2D-Hand-Estimation-Render\...`
-- If your project location is different, update path variables in both scripts.
-
 - Log files are append mode (`mode='a'`), so historical runs are preserved.
 
 ## Troubleshooting
@@ -250,4 +280,5 @@ Bandwidth estimate (single hand):
 - [ ] Run `python live_main.py --output-mode display`
 - [ ] Run `python readiness_main.py --mode sweep`
 - [ ] Run `python bridge_main.py --mode list-devices`
+- [ ] Run `python GUI_Panel/gui_main.py`
 

@@ -1,0 +1,246 @@
+schema: agent-executor/v1
+metadata:
+  plan_id: gui-control-panel-rebuild
+  title: Rebuild GUI Control Panel for Bridge and Live Workflows
+  version: "2.0"
+  owner: user
+  authoring_agent: github-copilot
+  created_on: 2026-07-22
+  last_updated: 2026-07-22
+  status: completed
+  priority: high
+
+executor:
+  mode: dependency-graph
+  allow_parallel: true
+  fail_fast: true
+  default_timeout_minutes: 30
+  max_retries_per_task: 1
+
+context:
+  workspace: 2D-Hand-Estimation-Model-Testcase
+  objective: >-
+    Build a desktop GUI control panel that orchestrates bridge_main.py and
+    live_main.py workflows with readable device grouping, selectable input/output
+    devices, sender/receiver controls, decode-wav automation, and live controls.
+  constraints:
+    - Reuse current module APIs when possible.
+    - Keep UI responsive during long-running jobs.
+    - Avoid references to removed image/video benchmark assets.
+
+inputs:
+  required_files:
+    - bridge_main.py
+    - live_main.py
+    - Meeting_Bridge_Module/bridge_main.py
+    - Meeting_Bridge_Module/audio/device_io.py
+    - Meeting_Bridge_Module/sender/meeting_sender.py
+    - Meeting_Bridge_Module/receiver/meeting_receiver.py
+  runtime_prerequisites:
+    - python>=3.9
+    - opencv-python
+    - mediapipe
+    - sounddevice
+  mutable_paths:
+    - GUI_Panel/
+    - README.md
+
+outputs:
+  target_artifacts:
+    - GUI_Panel/gui_main.py
+    - GUI_Panel/
+    - plan/gui_control_panel_plan.yaml
+    - build_gui_exe.ps1
+  runtime_artifacts:
+    - local_sender_copy/*.wav
+    - result_video/*.mp4
+
+variables:
+  defaults:
+    local_wav_dir: local_sender_copy
+    result_video_dir: result_video
+    sender_tx_fps: 1.8
+    decode_timestamp_timing: true
+    decode_max_hold_ms: 2500
+
+task_graph:
+  - id: T01
+    title: Define GUI contracts
+    status: completed
+    priority: high
+    depends_on: []
+    run_mode: manual
+    objective: Finalize tab layout, control sets, and validation rules.
+    steps:
+      - Define minimum controls for Devices, Sender, Receiver/Decode, Live, Logs tabs.
+      - Define advanced controls grouping and default visibility.
+      - Define validation/error message contract.
+    acceptance:
+      - Controls and defaults are documented and unambiguous.
+
+  - id: T02
+    title: Create GUI skeleton
+    status: completed
+    priority: high
+    depends_on: [T01]
+    run_mode: manual
+    objective: Create launcher and module structure.
+    steps:
+      - Add GUI_Panel/gui_main.py launcher.
+      - Add GUI_Panel package with view/controller/worker separation.
+      - Add base shell with tabs and shared log panel.
+    acceptance:
+      - GUI starts with tab placeholders and no import errors.
+
+  - id: T03
+    title: Implement Devices tab and shared device source
+    status: completed
+    priority: high
+    depends_on: [T02]
+    run_mode: manual
+    objective: Provide readable grouped device inventory.
+    api_bindings:
+      - Meeting_Bridge_Module.audio.device_io.list_audio_devices
+    steps:
+      - Refresh and cache devices.
+      - Render groups: microphones (in>0), speakers (out>0), full list.
+      - Feed sender output-device and receiver input-device dropdowns from same cache.
+    acceptance:
+      - Refresh produces grouped display and selectable entries.
+
+  - id: T04
+    title: Implement Sender actions
+    status: completed
+    priority: high
+    depends_on: [T03]
+    run_mode: manual
+    objective: Support requested sender workflows in non-blocking mode.
+    actions:
+      - name: sender_tx_fps
+        command_template: python bridge_main.py --mode sender --audio-output-device <selected_output_device> --tx-fps <tx_fps>
+      - name: sender_local_copy
+        command_template: python bridge_main.py --mode sender --audio-output-device <selected_output_device> --local-wav-copy-dir <local_wav_dir>
+    api_bindings:
+      - Meeting_Bridge_Module.sender.meeting_sender.MeetingSender.run
+    acceptance:
+      - Sender starts/stops from UI without freezing.
+      - Selected output device is respected.
+
+  - id: T05
+    title: Implement Receiver and Decode actions
+    status: completed
+    priority: high
+    depends_on: [T03]
+    run_mode: manual
+    objective: Support receiver runtime and latest-wav decode workflow.
+    actions:
+      - name: receiver_run
+        command_template: python bridge_main.py --mode receiver --audio-input-device <selected_input_device> --publish-virtual-cam --display
+      - name: decode_latest_wav
+        command_template: >-
+          python bridge_main.py --mode decode-wav --in-wav <latest_local_wav>
+          --result-video-dir <result_video_dir> --timestamp-timing --timestamp-max-hold-ms <decode_max_hold_ms>
+    api_bindings:
+      - Meeting_Bridge_Module.receiver.meeting_receiver.MeetingReceiver.run
+      - Meeting_Bridge_Module.receiver.meeting_receiver.decode_wav_to_video
+    preconditions:
+      - local_sender_copy contains at least one .wav for decode action.
+    acceptance:
+      - Receiver starts/stops from UI.
+      - Decode auto-selects newest wav by modified time.
+      - MP4 output appears under result_video.
+
+  - id: T06
+    title: Integrate Live tab
+    status: completed
+    priority: medium
+    depends_on: [T02]
+    run_mode: manual
+    objective: Expose live_main controls with safe presets.
+    actions:
+      - name: live_beginner
+        command_template: python live_main.py --queue-capacity 8 --rx-delay-frames 1 --output-mode display
+      - name: live_virtual_cam
+        command_template: python live_main.py --output-mode virtual-cam --max-frames 0
+      - name: live_both
+        command_template: python live_main.py --output-mode both
+    acceptance:
+      - Live presets execute and can be stopped from UI.
+      - UI stays responsive.
+
+  - id: T07
+    title: Add worker orchestration and guardrails
+    status: completed
+    priority: high
+    depends_on: [T04, T05, T06]
+    run_mode: manual
+    objective: Prevent conflicting operations and centralize error handling.
+    steps:
+      - Enforce one active worker per lane (sender/receiver/live/decode).
+      - Disable conflicting actions while jobs are active.
+      - Stream tagged logs and exceptions to log tab.
+      - Add graceful stop with timeout.
+    acceptance:
+      - No deadlocks, no cross-lane conflicts, clear error reporting.
+
+  - id: T08
+    title: Update README consistency
+    status: completed
+    priority: medium
+    depends_on: [T07]
+    run_mode: manual
+    objective: Align docs with GUI capabilities and current project state.
+    steps:
+      - Add GUI launch section and per-tab usage summary.
+      - Document latest-wav auto decode behavior.
+      - Remove stale references to deleted assets.
+    acceptance:
+      - README commands resolve to existing files and valid modes.
+
+  - id: T09
+    title: Run final regression checks
+    status: completed
+    priority: high
+    depends_on: [T08]
+    run_mode: automated
+    objective: Ensure no dead commands/imports/docs and validate responsiveness.
+    checks:
+      - python bridge_main.py --help
+      - python live_main.py --help
+      - python readiness_main.py --help
+      - python webcam_main.py --help
+    acceptance:
+      - All checks return exit code 0.
+      - No missing-module errors.
+
+quality_gates:
+  - id: QG-commands
+    description: No dead-link command in README.
+  - id: QG-imports
+    description: No invalid imports in top-level entrypoints.
+  - id: QG-ui-responsiveness
+    description: Sender/Receiver/Live actions do not freeze GUI.
+  - id: QG-decode
+    description: Latest WAV auto-discovery produces MP4 output.
+
+risk_register:
+  - id: R1
+    risk: Device names may be ambiguous across sessions.
+    mitigation: Store and display both index and name; revalidate at start.
+  - id: R2
+    risk: No WAV file available for decode.
+    mitigation: Disable decode action and show remediation guidance.
+  - id: R3
+    risk: Worker exceptions become silent failures.
+    mitigation: Centralized exception relay to GUI log panel.
+  - id: R4
+    risk: Missing virtual camera backend.
+    mitigation: Catch dependency errors and show install guidance.
+
+executor_notes:
+  batching_strategy:
+    - Run T03 and T06 in parallel after T02 when team size allows.
+    - Keep T04 and T05 independent once T03 is done.
+  rollback_strategy:
+    - Revert last GUI module changeset if responsiveness gate fails.
+    - Keep CLI behavior unchanged while iterating on GUI.

@@ -1,0 +1,177 @@
+schema: agent-executor/v1
+metadata:
+  plan_id: gui-sender-warm-session
+  title: Add GUI Warm Sender Resident Session
+  version: "1.0"
+  owner: user
+  authoring_agent: github-copilot
+  created_on: 2026-07-22
+  last_updated: 2026-07-22
+  status: in_progress
+  priority: high
+
+executor:
+  mode: dependency-graph
+  allow_parallel: true
+  fail_fast: true
+  default_timeout_minutes: 30
+  max_retries_per_task: 1
+
+context:
+  workspace: 2D-Hand-Estimation-Model-Testcase
+  objective: >-
+    Convert the GUI sender into a resident warm-session workflow so the first
+    GUI launch preloads the model, webcam, and audio output, and later Start
+    Sender clicks reuse the prepared resources instead of redoing cold start
+    initialization.
+  constraints:
+    - Keep GUI responsive during warmup and sender execution.
+    - Preserve existing CLI behavior for bridge_main.py.
+    - Reuse existing module APIs when possible.
+
+inputs:
+  required_files:
+    - GUI_Panel/app.py
+    - Meeting_Bridge_Module/sender/meeting_sender.py
+    - Meeting_Bridge_Module/audio/device_io.py
+    - Meeting_Bridge_Module/bridge_main.py
+    - README.md
+  runtime_prerequisites:
+    - python>=3.9
+    - opencv-python
+    - mediapipe
+    - sounddevice
+  mutable_paths:
+    - GUI_Panel/
+    - README.md
+
+outputs:
+  target_artifacts:
+    - GUI_Panel/app.py
+    - GUI_Panel/gui_main.py
+    - README.md
+    - plan/gui_sender_warm_session_plan.yaml
+  runtime_artifacts:
+    - local_sender_copy/*.wav
+
+variables:
+  defaults:
+    model_path: Models/hand_landmarker.task
+    sender_tx_fps: 1.8
+    sender_local_wav_dir: local_sender_copy
+    warm_session_state: ready
+
+task_graph:
+  - id: W01
+    title: Define warm-session lifecycle
+    status: completed
+    priority: high
+    depends_on: []
+    run_mode: manual
+    objective: Establish resident sender state transitions and ownership.
+    steps:
+      - Define idle, warming, ready, running, and releasing states.
+      - Decide that warmup belongs to the GUI lifecycle, not the send loop.
+      - Keep sender Stop from destroying cached warm resources.
+    acceptance:
+      - Lifecycle rules are explicit and consistent.
+
+  - id: W02
+    title: Split sender prepare and run
+    status: completed
+    priority: high
+    depends_on: [W01]
+    run_mode: manual
+    objective: Separate cold initialization from transmit execution.
+    steps:
+      - Resolve the model path once.
+      - Create the MediaPipe HandLandmarker during preparation.
+      - Open webcam and audio output during preparation.
+      - Keep the transmit loop reusable for repeated starts.
+    acceptance:
+      - Preparation can be reused without redoing model load.
+
+  - id: W03
+    title: Add GUI warm controller
+    status: completed
+    priority: high
+    depends_on: [W02]
+    run_mode: manual
+    objective: Own the resident sender session from the GUI layer.
+    steps:
+      - Build a controller that caches the prepared sender session.
+      - Start warmup automatically after GUI startup or device refresh.
+      - Rebuild the session when model/device/backend settings change.
+    acceptance:
+      - GUI can reuse an already prepared sender session.
+
+  - id: W04
+    title: Wire Start and Stop controls
+    status: completed
+    priority: high
+    depends_on: [W03]
+    run_mode: manual
+    objective: Make repeated starts fast and stops non-destructive.
+    steps:
+      - Start Sender reuses the resident session.
+      - Stop Sender stops only the active transmit loop.
+      - Show warming and ready states in the sender status label.
+    acceptance:
+      - Second Start Sender is noticeably faster than the first.
+
+  - id: W05
+    title: Cleanup and failure recovery
+    status: completed
+    priority: high
+    depends_on: [W03, W04]
+    run_mode: manual
+    objective: Release resources cleanly and avoid hard failures.
+    steps:
+      - Release cached camera/audio/model resources on GUI close.
+      - Fall back to cold-start sender if warmup cannot be established.
+      - Prevent leaked handles across repeated start/stop cycles.
+    acceptance:
+      - GUI closes without device lock residue.
+
+  - id: W06
+    title: Document warm sender behavior
+    status: completed
+    priority: medium
+    depends_on: [W04, W05]
+    run_mode: manual
+    objective: Align README with the resident-session behavior.
+    steps:
+      - Describe warm session behavior in GUI section.
+      - Clarify that Start Sender reuses a prepared session.
+      - Note that GUI close releases the resident sender resources.
+    acceptance:
+      - README matches the implemented warm-session behavior.
+
+quality_gates:
+  - id: QG-warm-start
+    description: First GUI launch preloads sender resources in the background.
+  - id: QG-fast-restart
+    description: Subsequent Start Sender clicks reuse the resident session.
+  - id: QG-clean-stop
+    description: Stop Sender does not destroy the warm session.
+  - id: QG-clean-exit
+    description: GUI close releases all resident sender resources.
+
+risk_register:
+  - id: R1
+    risk: Warmup may fail on systems with unavailable cameras or audio devices.
+    mitigation: Surface the exact failure reason and fall back to cold start.
+  - id: R2
+    risk: Cached resources can become stale after device changes.
+    mitigation: Rebuild the warm session when device or model settings change.
+  - id: R3
+    risk: GUI start-up may still feel slow if warmup runs on the main thread.
+    mitigation: Keep warmup in a background worker and show progress status.
+
+executor_notes:
+  batching_strategy:
+    - Implement W01 and W02 first, then wire W03/W04 together.
+    - Validate W05 before updating documentation in W06.
+  rollback_strategy:
+    - Revert only the warm-session controller if startup timing regresses.
+    - Keep bridge_main.py CLI behavior unchanged during iteration.

@@ -3,16 +3,18 @@ from __future__ import annotations
 import argparse
 import logging
 import os
+import sys
 import time
 from collections import deque
 from dataclasses import dataclass
 from typing import Deque, Optional
 
 import cv2
-import mediapipe as mp
 import numpy as np
-from mediapipe.tasks import python
-from mediapipe.tasks.python import vision
+from mediapipe.tasks.python.core.base_options import BaseOptions
+from mediapipe.tasks.python.vision.core.image import Image, ImageFormat
+from mediapipe.tasks.python.vision.core.vision_task_running_mode import VisionTaskRunningMode
+from mediapipe.tasks.python.vision.hand_landmarker import HandLandmarker, HandLandmarkerOptions
 
 from Conferencing_Module.virtual.virtual_camera import VirtualCameraConfig, VirtualCameraPublisher
 from FSK_Module.fsk_modem import FSKConfig, modulate_packet_stream
@@ -148,6 +150,36 @@ def setup_logger(log_path: str) -> logging.Logger:
     return logger
 
 
+def resolve_model_path(model_path: str) -> str:
+    if os.path.isabs(model_path) and os.path.exists(model_path):
+        return model_path
+
+    candidates: list[str] = []
+    if os.path.isabs(model_path):
+        candidates.append(model_path)
+    else:
+        candidates.append(os.path.abspath(os.path.join(os.getcwd(), model_path)))
+        exe_dir = os.path.dirname(sys.executable)
+        candidates.append(os.path.abspath(os.path.join(exe_dir, model_path)))
+
+        meipass = getattr(sys, "_MEIPASS", None)
+        if isinstance(meipass, str) and meipass:
+            candidates.append(os.path.abspath(os.path.join(meipass, model_path)))
+
+        repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        candidates.append(os.path.abspath(os.path.join(repo_root, model_path)))
+
+    for candidate in candidates:
+        if os.path.exists(candidate):
+            return candidate
+
+    tried = "\n".join(f"- {path}" for path in candidates)
+    raise FileNotFoundError(
+        "Model file not found: "
+        f"{model_path}. Tried:\n{tried}"
+    )
+
+
 def _packet_to_render_rows(packet: PosePacket) -> tuple[np.ndarray, np.ndarray]:
     hand_present = np.zeros((HAND_SLOT_COUNT,), dtype=np.uint8)
     hand_xy = np.zeros((HAND_SLOT_COUNT, 21, 2), dtype=np.float32)
@@ -248,19 +280,15 @@ def main() -> None:
     show_windows = args.output_mode in ("display", "both") and bool(args.display)
     publish_virtual_cam = args.output_mode in ("virtual-cam", "both")
 
-    model_path = args.model_path
-    if not os.path.isabs(model_path):
-        model_path = os.path.join(os.getcwd(), model_path)
-    if not os.path.exists(model_path):
-        raise FileNotFoundError(f"Model file not found: {model_path}")
+    model_path = resolve_model_path(args.model_path)
 
-    base_options = python.BaseOptions(model_asset_path=model_path)
-    options = vision.HandLandmarkerOptions(
+    base_options = BaseOptions(model_asset_path=model_path)
+    options = HandLandmarkerOptions(
         base_options=base_options,
         num_hands=2,
-        running_mode=vision.RunningMode.VIDEO,
+        running_mode=VisionTaskRunningMode.VIDEO,
     )
-    detector = vision.HandLandmarker.create_from_options(options)
+    detector = HandLandmarker.create_from_options(options)
 
     cap = cv2.VideoCapture(args.camera_id)
     if not cap.isOpened():
@@ -310,7 +338,7 @@ def main() -> None:
             capture_timestamp_ms = int(time.time() * 1000)
 
             rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
+            mp_image = Image(image_format=ImageFormat.SRGB, data=rgb_frame)
             hand_landmarker_result = detector.detect_for_video(mp_image, capture_timestamp_ms)
 
             quantized_hands = []
