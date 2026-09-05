@@ -1,0 +1,204 @@
+{
+  "pose_path": "D:\\Project\\2D-Hand\\logs\\v3_recovered_pose.npz",
+  "reference_mode": "OFFICIAL_FIXED_ABLATION",
+  "official_reference_sequence": "IMG_1087",
+  "official_reference_frame": 6,
+  "official_reference_image": "D:\\Project\\2D-Hand\\Generation_Module\\FoundHand\\test_data\\iphone_video\\IMG_1087\\0006.jpg",
+  "official_reference_pose": "D:\\Project\\2D-Hand\\Generation_Module\\FoundHand\\test_data\\iphone_video\\IMG_1087.pkl",
+  "target_hand": "RIGHT",
+  "sampling_steps": 100,
+  "cfg_scale": 2.5,
+  "baseline_mirror_x": true,
+  "requested_fsk_frame_ids": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19
+  ],
+  "use_all_usable_frames": true,
+  "interpolation_steps_between": 0,
+  "video_fps": 1.8,
+  "reuse_initial_z": true,
+  "same_sampling_noise_each_frame": true,
+  "use_previous_generated_refs": false,
+  "max_previous_generated_refs": 1,
+  "frames": [
+    {
+      "output_index": 0,
+      "label": "fsk_0",
+      "source_frame_id": 0,
+      "orientation": "PALM",
+      "appearance_reference": "IMG_1087_0006_FIXED",
+      "path": "D:\\Project\\2D-Hand\\Generation_Module\\FoundHand\\my_demos\\image2video_runs\\20260828_183139\\frames\\frame_0000.png"
+    },
+    {
+      "output_index": 1,
+      "label": "fsk_1",
+      "source_frame_id": 1,
+      "orientation": "PALM",
+      "appearance_reference": "IMG_1087_0006_FIXED",
+      "path": "D:\\Project\\2D-Hand\\Generation_Module\\FoundHand\\my_demos\\image2video_runs\\20260828_183139\\frames\\frame_0001.png"
+    },
+    {
+      "output_index": 2,
+      "label": "fsk_2",
+      "source_frame_id": 2,
+      "orientation": "PALM",
+      "appearance_reference": "IMG_1087_0006_FIXED",
+      "path": "D:\\Project\\2D-Hand\\Generation_Module\\FoundHand\\my_demos\\image2video_runs\\20260828_183139\\frames\\frame_0002.png"
+    },
+    {
+      "output_index": 3,
+      "label": "fsk_3",
+      "source_frame_id": 3,
+      "orientation": "PALM",
+      "appearance_reference": "IMG_1087_0006_FIXED",
+      "path": "D:\\Project\\2D-Hand\\Generation_Module\\FoundHand\\my_demos\\image2video_runs\\20260828_183139\\frames\\frame_0003.png"
+    },
+    {
+      "output_index": 4,
+      "label": "fsk_4",
+      "source_frame_id": 4,
+      "orientation": "PALM",
+      "appearance_reference": "IMG_1087_0006_FIXED",
+      "path": "D:\\Project\\2D-Hand\\Generation_Module\\FoundHand\\my_demos\\image2video_runs\\20260828_183139\\frames\\frame_0004.png"
+    },
+    {
+      "output_index": 5,
+      "label": "fsk_5",
+      "source_frame_id": 5,
+      "orientation": "PALM",
+      "appearance_reference": "IMG_1087_0006_FIXED",
+      "path": "D:\\Project\\2D-Hand\\Generation_Module\\FoundHand\\my_demos\\image2video_runs\\20260828_183139\\frames\\frame_0005.png"
+    },
+    {
+      "output_index": 6,
+      "label": "fsk_6",
+      "source_frame_id": 6,
+      "orientation": "BACK",
+      "appearance_reference": "IMG_1087_0006_FIXED",
+      "path": "D:\\Project\\2D-Hand\\Generation_Module\\FoundHand\\my_demos\\image2video_runs\\20260828_183139\\frames\\frame_0006.png"
+    },
+    {
+      "output_index": 7,
+      "label": "fsk_7",
+      "source_frame_id": 7,
+      "orientation": "BACK",
+      "appearance_reference": "IMG_1087_0006_FIXED",
+      "path": "D:\\Project\\2D-Hand\\Generation_Module\\FoundHand\\my_demos\\image2video_runs\\20260828_183139\\frames\\frame_0007.png"
+    },
+    {
+      "output_index": 8,
+      "label": "fsk_8",
+      "source_frame_id": 8,
+      "orientation": "BACK",
+      "appearance_reference": "IMG_1087_0006_FIXED",
+      "path": "D:\\Project\\2D-Hand\\Generation_Module\\FoundHand\\my_demos\\image2video_runs\\20260828_183139\\frames\\frame_0008.png"
+    },
+    {
+      "output_index": 9,
+      "label": "fsk_9",
+      "source_frame_id": 9,
+      "orientation": "BACK",
+      "appearance_reference": "IMG_1087_0006_FIXED",
+      "path": "D:\\Project\\2D-Hand\\Generation_Module\\FoundHand\\my_demos\\image2video_runs\\20260828_183139\\frames\\frame_0009.png"
+    },
+    {
+      "output_index": 10,
+      "label": "fsk_10",
+      "source_frame_id": 10,
+      "orientation": "PALM",
+      "appearance_reference": "IMG_1087_0006_FIXED",
+      "path": "D:\\Project\\2D-Hand\\Generation_Module\\FoundHand\\my_demos\\image2video_runs\\20260828_183139\\frames\\frame_0010.png"
+    },
+    {
+      "output_index": 11,
+      "label": "fsk_11",
+      "source_frame_id": 11,
+      "orientation": "PALM",
+      "appearance_reference": "IMG_1087_0006_FIXED",
+      "path": "D:\\Project\\2D-Hand\\Generation_Module\\FoundHand\\my_demos\\image2video_runs\\20260828_183139\\frames\\frame_0011.png"
+    },
+    {
+      "output_index": 12,
+      "label": "fsk_12",
+      "source_frame_id": 12,
+      "orientation": "PALM",
+      "appearance_reference": "IMG_1087_0006_FIXED",
+      "path": "D:\\Project\\2D-Hand\\Generation_Module\\FoundHand\\my_demos\\image2video_runs\\20260828_183139\\frames\\frame_0012.png"
+    },
+    {
+      "output_index": 13,
+      "label": "fsk_13",
+      "source_frame_id": 13,
+      "orientation": "PALM",
+      "appearance_reference": "IMG_1087_0006_FIXED",
+      "path": "D:\\Project\\2D-Hand\\Generation_Module\\FoundHand\\my_demos\\image2video_runs\\20260828_183139\\frames\\frame_0013.png"
+    },
+    {
+      "output_index": 14,
+      "label": "fsk_14",
+      "source_frame_id": 14,
+      "orientation": "PALM",
+      "appearance_reference": "IMG_1087_0006_FIXED",
+      "path": "D:\\Project\\2D-Hand\\Generation_Module\\FoundHand\\my_demos\\image2video_runs\\20260828_183139\\frames\\frame_0014.png"
+    },
+    {
+      "output_index": 15,
+      "label": "fsk_15",
+      "source_frame_id": 15,
+      "orientation": "PALM",
+      "appearance_reference": "IMG_1087_0006_FIXED",
+      "path": "D:\\Project\\2D-Hand\\Generation_Module\\FoundHand\\my_demos\\image2video_runs\\20260828_183139\\frames\\frame_0015.png"
+    },
+    {
+      "output_index": 16,
+      "label": "fsk_16",
+      "source_frame_id": 16,
+      "orientation": "PALM",
+      "appearance_reference": "IMG_1087_0006_FIXED",
+      "path": "D:\\Project\\2D-Hand\\Generation_Module\\FoundHand\\my_demos\\image2video_runs\\20260828_183139\\frames\\frame_0016.png"
+    },
+    {
+      "output_index": 17,
+      "label": "fsk_17",
+      "source_frame_id": 17,
+      "orientation": "PALM",
+      "appearance_reference": "IMG_1087_0006_FIXED",
+      "path": "D:\\Project\\2D-Hand\\Generation_Module\\FoundHand\\my_demos\\image2video_runs\\20260828_183139\\frames\\frame_0017.png"
+    },
+    {
+      "output_index": 18,
+      "label": "fsk_18",
+      "source_frame_id": 18,
+      "orientation": "PALM",
+      "appearance_reference": "IMG_1087_0006_FIXED",
+      "path": "D:\\Project\\2D-Hand\\Generation_Module\\FoundHand\\my_demos\\image2video_runs\\20260828_183139\\frames\\frame_0018.png"
+    },
+    {
+      "output_index": 19,
+      "label": "fsk_19",
+      "source_frame_id": 19,
+      "orientation": "PALM",
+      "appearance_reference": "IMG_1087_0006_FIXED",
+      "path": "D:\\Project\\2D-Hand\\Generation_Module\\FoundHand\\my_demos\\image2video_runs\\20260828_183139\\frames\\frame_0019.png"
+    }
+  ],
+  "video_path": "D:\\Project\\2D-Hand\\Generation_Module\\FoundHand\\my_demos\\image2video_runs\\20260828_183139\\test_image2video.mp4"
+}

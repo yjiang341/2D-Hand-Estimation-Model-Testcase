@@ -1,0 +1,57 @@
+{
+  "raw_npz": "D:\\Project\\2D-Hand\\local_sender_copy\\raw_mediapipe_pose.npz",
+  "recovered_npz": "D:\\Project\\2D-Hand\\logs\\v3_recovered_pose.npz",
+  "raw_coordinate_mode": "sender256",
+  "recovered_coordinate_mode": "pixels255",
+  "raw_coordinate_convention": "explicit sender 0..256 diagnostic pixels -> 0..255",
+  "recovered_coordinate_convention": "explicit 0..255 pixels",
+  "raw_frame_count": 20,
+  "recovered_frame_count": 20,
+  "common_frame_count": 20,
+  "missing_at_receiver_frame_ids": [],
+  "missing_at_sender_frame_ids": [],
+  "same_session_metadata_sanity": {
+    "common_frame_count": 20,
+    "tx_presence_check_available": true,
+    "tx_presence_exact_frames": 20,
+    "tx_presence_total_frames": 20,
+    "tx_presence_exact_rate": 1.0,
+    "orientation_check_available": true,
+    "orientation_exact_frames": 20,
+    "orientation_total_frames": 20,
+    "orientation_exact_rate": 1.0
+  },
+  "likely_same_session": true,
+  "geometry_compare_policy": "DETECTED only",
+  "thresholds": {
+    "mean_pass_px": 0.75,
+    "max_pass_px": 1.5
+  },
+  "geometry": {
+    "compared_hand_frames": 40,
+    "overall": {
+      "mean_of_handframe_mean_error_px": 0.39350574612617495,
+      "median_handframe_mean_error_px": 0.39214272797107697,
+      "mean_of_handframe_rms_error_px": 0.41708711880580107,
+      "worst_handframe_max_error_px": 0.6915554404258728,
+      "all_mean_threshold_pass": true,
+      "all_max_threshold_pass": true
+    },
+    "by_hand": {
+      "RIGHT": {
+        "compared_frames": 20,
+        "mean_of_mean_error_px": 0.3958852499723434,
+        "mean_rms_error_px": 0.42019145208390896,
+        "worst_max_error_px": 0.6915554404258728
+      },
+      "LEFT": {
+        "compared_frames": 20,
+        "mean_of_mean_error_px": 0.3911262422800064,
+        "mean_rms_error_px": 0.41398278552769324,
+        "worst_max_error_px": 0.6897507905960083
+      }
+    }
+  },
+  "output_csv": "D:\\Project\\2D-Hand\\logs\\raw_vs_v3_compare\\per_frame_hand_errors.csv",
+  "overlay_dir": "D:\\Project\\2D-Hand\\logs\\raw_vs_v3_compare\\overlays"
+}

@@ -1,284 +1,175 @@
-# Audio-Based-2D-Hand-Estimation-Render
+# 2D-Hand
 
-## Project Objectives
+A test pipeline that includes:
+Near real-time 2D hand-pose estimation, FSK transport, skeleton reconstruction,
+and controlled hand-image generation
 
-- Detect up to 2 hands per frame/image
-- Visualize 21 keypoints per hand
-- Draw a hand skeleton (fingers + palm links)
-- Record runtime-friendly metrics (latency, throughput/FPS, memory, CPU)
-- Convert visual ASL hand pose into sound wave on the sender side, then rendering the sound wave back to Visualize 2D estimate hand pose
+## Overview
 
-## Folder Structure
+This repository contains two connected research components:
+
+1. `Estimation_Module` captures hand landmarks with 2D hand-pose estimation, quantizes them
+	 into pose packets, transports them through BFSK audio modulation, and
+	 reconstructs the received 2D skeleton.
+2. `Generation_Module` contains the controlled hand-image genration model source integration and the
+	 current non-notebook Image2Video baseline.
+
+The intended end-to-end pipeline is:
 
 ```text
-2D-Hand-Estimation-Model-Testcase/
-|-- README.md
-|-- webcam_main.py
-|-- live_main.py
-|-- readiness_main.py
-|-- bridge_main.py
-|-- build_gui_exe.ps1
-|-- GUI_Panel/
-|   |-- gui_main.py
-|   |-- app.py
-|   |-- tabs/
-|   |-- workers/
-|-- Models/
-|   |-- hand_landmarker.task
-|-- result_video/
-|-- local_sender_copy/
-|-- logs/
-|-- Live_Module/
-|-- FSK_Module/
-|-- Conferencing_Module/
-|-- Meeting_Bridge_Module/
-|-- Pose_PacketUp/
+Webcam
+	-> 2D hand-pose estimation hand landmarks
+	-> canonical RIGHT/LEFT 21-point slots
+	-> Pose Packet
+	-> FSK audio transport
+	-> packet recovery and pose smoothing
+	-> controlled hand-image generation model conditioning adapter
+	-> generated hand frames
 ```
 
-## File and Folder Roles
+## Repository Layout (As Sep 4th, 2026)
 
-### Core Scripts
-
-- `webcam_main.py`
-	- Captures webcam input in real time (`cv2.VideoCapture(0)`)
-	- Runs MediaPipe hand tracking in VIDEO mode
-	- Shows live overlay (`FPS`, `Memory`, `CPU`, `Pose payload bytes`)
-	- Writes benchmark report to `logs/webcam_usage.log`
-
-- `live_main.py`
-	- Captures webcam frames and quantizes up to 2 hands into pose packets
-	- Runs live in-memory BFSK sender and receiver per frame
-	- Reconstructs and smooths decoded pose stream in real time
-
-- `Pose_PacketUp/pose_codec.py`
-	- Converts MediaPipe hand landmarks from `(x, y, z)` to compact `(x, y)` only
-	- Uses normalized coordinate quantization: `x_u8 = round(clamp(x, 0, 1) * 255)`
-	- Payload size per hand: `21 points × 2 channels = 42 bytes/frame`
-
-- `GUI_Panel/gui_main.py`
-	- Launches desktop GUI control panel for device refresh, sender/receiver control, decode, and live workflows
-
-### Used Model
-
-- `Models/hand_landmarker.task`
-	- MediaPipe hand landmark model used by both scripts
-
-## Environment Requirements
-
-### OS and Runtime
-
-- Windows (scripts currently use Windows absolute paths)
-- Python 3.9+ recommended
-
-### Python Dependencies
-
-```bash
-pip install opencv-python mediapipe psutil sounddevice
+```text
+.
+|-- Estimation_Module/
+|   |-- FSK_Module/              # BFSK modulation, demodulation, receiver APIs
+|   |-- Meeting_Bridge_Module/   # Audio sender/receiver bridge
+|   |-- Conferencing_Module/     # Channel simulation and readiness checks
+|   |-- Live_Module/             # Webcam -> packet -> FSK -> skeleton loop
+|   |-- Pose_PacketUp/           # Packet codec, reconstruction, rendering
+|   |-- Models/                  # MediaPipe hand landmark model location
+|-- Generation_Module/
+|   |-- FoundHand/               # Pinned FoundHand source
+|   |-- scripts/                 # Baseline and reusable runner scripts
+|   `-- .venv/                   # Local plan and agent execution metadata
+`-- README.md
 ```
 
-Optional dependency (only when using virtual camera features):
+Large runtime assets and generated outputs are intentionally not described as
+source files here. In particular, local environments, model weights, build
+directories, generated outputs, some test data, and Git metadata.
 
-```bash
-pip install pyvirtualcam
+## Requirements
+
+### Estimation and transport (As Sep 4th, 2026)
+
+- Windows is the primary development environment.
+- Python 3.9 or newer is recommended.
+- MediaPipe Tasks hand landmarker model at
+	`Estimation_Module/Models/hand_landmarker.task`.
+- Core runtime dependencies include OpenCV, NumPy, MediaPipe, psutil, and
+	sounddevice. `pyvirtualcam` is optional for virtual-camera output.
+
+### FoundHand generation (As Sep 4th, 2026)
+
+The validated local FoundHand environment uses:
+
+- Python 3.9.25
+- PyTorch 2.3.0 with CUDA 12.1
+- Torchvision 0.18.0 with CUDA 12.1
+- Lightning 2.3.0
+- timm 1.0.7
+- NumPy 1.26.4
+- MediaPipe 1.0.0
+- OpenCV 5.0.0
+- Segment Anything 1.0
+- An NVIDIA GPU with a compatible driver
+
+FoundHand also requires three local checkpoints. Their paths and sizes are
+recorded in `Generation_Module/reports/environment_report.md`; the files are
+not part of the normal source checkout.
+
+## Installation
+
+Create or activate the environment appropriate for the component you are
+running. 
+
+The editable install is provided by `Generation_Module/FoundHand/setup.py`.
+For a normal Python environment, run `pip install -e .` from inside
+`Generation_Module/FoundHand`.
+
+The estimation environment can be installed with the project dependencies used
+by the active scripts:
+
+```powershell
+python -m pip install opencv-python mediapipe psutil sounddevice
 ```
 
-## Setup Guide
+Install `pyvirtualcam` only when using virtual-camera output:
 
-1. Install required Python packages.
-2. Ensure `Models/hand_landmarker.task` exists.
-
-## How To Run
-
-### 1) Live Sender/Receiver
-
-```bash
-python live_main.py --queue-capacity 8 --rx-delay-frames 1 --output-mode display
+```powershell
+python -m pip install pyvirtualcam
 ```
 
-Live RX bridge to virtual camera (OBS-style virtual device):
+## Running Estimation
 
-```bash
-python live_main.py --output-mode virtual-cam --max-frames 0
+Run commands from the repository root so package imports and relative paths
+resolve consistently.
+
+### Live webcam, FSK, and skeleton reconstruction
+
+```powershell
+python Estimation_Module/live_main.py --output-mode display
 ```
 
-Show windows and publish virtual camera simultaneously:
+Useful variants:
 
-```bash
-python live_main.py --output-mode both
+```powershell
+python Estimation_Module/live_main.py --output-mode headless --max-frames 100
+python Estimation_Module/live_main.py --output-mode virtual-cam
+python Estimation_Module/live_main.py --output-mode both
 ```
 
-Expected behavior:
+Press `q` or `Esc` to stop display-mode runs. The live pipeline supports queue
+capacity, receiver delay, EMA smoothing, FSK sample rate, symbol rate, and
+detection threshold options.
 
-- Captures webcam frames and quantizes up to 2 hands into pose packets
-- Runs live in-memory BFSK sender and receiver per frame
-- Reconstructs and smooths decoded pose stream in real time
-- Shows TX webcam and RX skeleton windows simultaneously
-- Can publish RX skeleton frames directly to virtual camera in real time
-- Reports queue depth, dropped frames, receiver validity, and latency metrics
-- Writes a runtime report to `logs/live_usage.log`
-- Press `q` or `esc` to stop
+### Integrated meeting bridge
 
-### 2) Conferencing Readiness (Auto Envrionment Configuration)
+List audio devices:
 
-```bash
-python readiness_main.py --mode sweep
+```powershell
+python Estimation_Module/Meeting_Bridge_Module/bridge_main.py --mode list-devices
 ```
 
-Optional virtual camera probe:
+Run sender, receiver, or decode a saved WAV using `--mode sender`,
+`--mode receiver`, or `--mode decode-wav`. Use `--help` to view the complete
+device and output configuration.
 
-```bash
-python readiness_main.py --mode both
+### Pose reconstruction and rendering
+
+```powershell
+python Estimation_Module/Pose_PacketUp/pose_reconstruct_main.py
+python Estimation_Module/Pose_PacketUp/pose_render_main.py --mode mp4
 ```
 
-Preset profiles (Choose one of three):
+The reconstruction tools use packet bytes as input and write normalized pose
+streams or rendered skeleton video to the configured output paths.
 
-```bash
-python readiness_main.py --mode sweep --profile high-reliability
-python readiness_main.py --mode sweep --profile balanced
-python readiness_main.py --mode sweep --profile low-latency
+## Running FoundHand Baseline
+
+The original FoundHand demo is an interactive notebook. The repository also
+contains a behavior-preserving standalone baseline:
+
+```powershell
+& "C:\Users\.conda\envs\foundhand\python.exe" `
+	Generation_Module/scripts/run_image2video_baseline.py `
+	--idx IMG_1087 `
+	--start-frame 0 `
+	--max-frames 5 `
+	--cfg-scale 2.5
 ```
 
-Expected behavior:
+The script loads the DiT, VAE, and SAM checkpoints, converts the supplied
+42-point pose sequence into FoundHand heatmaps, samples generated frames, and
+writes an AVI preview. Output is written under:
 
-- Runs a modular FSK parameter sweep under synthetic conferencing-style channel impairments
-- Measures frame loss and CRC rejection rate across candidate modem settings
-- Auto-selects a winner by preset target profile (`high-reliability`, `balanced`, `low-latency`)
-- Produces fallback recommendation when channel quality degrades
-- Optionally probes virtual camera output path (requires `pyvirtualcam`)
-- Saves structured report to `logs/readiness_report.json`
-
-### 3) Integrated sender/receiver Bridge
-
-This bridge is designed for teams where each participant runs this project locally.
-
-List local audio devices first:
-
-```bash
-python bridge_main.py --mode list-devices
+```text
+Generation_Module/outputs/image2video_original/
+|-- frames/
+|-- trajectory_vis.jpg
+|-- ref_frame_0000.jpg
+|-- IMG_1087.avi
+`-- execution.log
 ```
-
-Sender side (webcam -> pose -> BFSK audio output device):
-
-```bash
-python bridge_main.py --mode sender --audio-output-device "[YOUR AUDIO OUPUT DEVICE]" --tx-fps 1.8
-```
-
-Sender side with explicit local WAV copy location:
-
-```bash
-python bridge_main.py --mode sender --audio-output-device "[YOUR AUDIO OUPUT DEVICE]" --local-wav-copy-dir local_sender_copy
-```
-
-Receiver side (audio input device -> decode -> skeleton -> virtual camera):
-
-```bash
-python bridge_main.py --mode receiver --audio-input-device "[YOUR AUDIO INPUT DEVICE]" --publish-virtual-cam --display
-```
-
-Offline decode with timestamp-aligned hold behavior:
-
-```bash
-python bridge_main.py --mode decode-wav --in-wav local_sender_copy/sender_capture_YYYYMMDD_HHMMSS.wav --result-video-dir result_video --timestamp-timing --timestamp-max-hold-ms 2500
-```
-
-Expected behavior:
-
-- Sender captures webcam hand pose and modulates packets to a selected audio output device
-- Sender also stores a local WAV copy at `local_sender_copy/` by default for reproducible offline validation
-- Receiver captures a selected audio input stream, demodulates and decodes packets in near-real-time
-- Receiver renders skeleton preview and can publish to virtual camera for OBS/meeting app selection
-- Offline mode can decode a saved WAV and render reconstructed skeleton video to `result_video/*.mp4`
-- Offline decode supports timestamp-based frame hold to better match original gesture timing and pauses
-- Workflow is API-independent from Zoom/Google Meet; meeting apps act as transport surfaces
-
-### 4) Desktop GUI Control Panel (GUI_Panel)
-
-Launch GUI panel:
-
-```bash
-python GUI_Panel/gui_main.py
-```
-
-GUI tabs:
-
-- `Devices`
-	- Refreshes local audio devices and shows grouped sections (`Microphones`, `Speakers`, `All Devices`)
-- `Sender`
-	- Starts sender with selected output device in TX-FPS mode
-	- Starts sender with selected output device and local WAV copy directory
-- `Receiver / Decode`
-	- Starts/stops receiver with selected input device
-	- Decodes latest WAV automatically from `local_sender_copy/` into `result_video/`
-	- Supports timestamp timing and max hold configuration
-- `Live`
-	- Runs `live_main.py` presets (`Beginner`, `Advanced`) and supports stop control
-- `Logs`
-	- Displays tagged runtime logs and errors
-
-## Processing Workflow
-
-### Shared Detection Steps
-
-1. Initialize resource tracking (`psutil`, timers)
-2. Load `hand_landmarker.task`
-3. Convert BGR frames/images to RGB
-4. Run MediaPipe hand landmark detection
-5. Draw landmarks and skeleton connections
-6. Record metrics and write logs/results
-
-## Landmark Quantization Details
-
-- Original MediaPipe per-landmark data: `(x, y, z)`
-- This project now keeps only `(x, y)` for transmission
-- Coordinates are clamped to `[0.0, 1.0]` and mapped to uint8 `[0, 255]`
-
-Formula:
-
-```python
-x_int = int(round(max(0.0, min(1.0, x)) * 255))
-y_int = int(round(max(0.0, min(1.0, y)) * 255))
-```
-
-Bandwidth estimate (single hand):
-
-- `21 × 2 = 42 bytes/frame`
-- At 15 FPS: `42 × 15 = 630 bytes/sec`
-
-## Landmark Drawing Details
-
-- Green circles: keypoints
-- Blue lines: skeletal connections
-- Connection sets:
-	- Thumb
-	- Index finger
-	- Middle finger
-	- Ring finger
-	- Pinky
-	- Palm bridge
-
-## Important Notes
-
-- Log files are append mode (`mode='a'`), so historical runs are preserved.
-
-## Troubleshooting
-
-### OpenCV window does not show
-
-- Run from local desktop terminal (not headless environment)
-- Ensure OpenCV display support is available
-
-### Model load error
-
-- Confirm `Models/hand_landmarker.task` exists
-- Confirm model path string in scripts matches your local path
-
-## Quick Checklist
-
-- [ ] Install dependencies
-- [ ] Verify model path
-- [ ] Run `python webcam_main.py`
-- [ ] Run `python live_main.py --output-mode display`
-- [ ] Run `python readiness_main.py --mode sweep`
-- [ ] Run `python bridge_main.py --mode list-devices`
-- [ ] Run `python GUI_Panel/gui_main.py`
 
